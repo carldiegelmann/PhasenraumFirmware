@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# C/C++ build output
+**/build/
+*.o
+*.d
+*.lst
+*.elf
+*.bin
+*.hex
+*.map
+
+# .NET
+**/bin/
+**/obj/
+
+# Editor
+.vscode/
+.idea/
+
