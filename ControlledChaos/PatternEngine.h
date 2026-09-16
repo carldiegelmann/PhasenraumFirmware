@@ -31,6 +31,10 @@ class PatternEngine
         captureIndex_ = 0;
         playIndex_ = 0;
 
+        captureIndex_ = 0;
+        playIndex_ = 0;
+        lastPlayedIndex_ = -1;    
+
         mutation_ = 0.0;
 
         // Deterministischer Startwert für Loop-Mutation.
@@ -180,6 +184,16 @@ class PatternEngine
         return pattern_[index];
     }
 
+    int GetLastPlayedIndex() const
+    {
+        return lastPlayedIndex_;
+    }
+
+    int GetLastPlayedPosition() const
+    {
+        return lastPlayedIndex_ + 1;
+    }
+
   private:
     ChaosStep pattern_[MaxPatternLength];
 
@@ -189,11 +203,11 @@ class PatternEngine
 
     int captureIndex_ = 0;
     int playIndex_ = 0;
+    int lastPlayedIndex_ = -1;
 
     double mutation_ = 0.0;
 
-    uint64_t mutationState_
-        = 0x123456789ABCDEF0ULL;
+    uint64_t mutationState_ = 0x123456789ABCDEF0ULL;
 
     // ------------------------------------------------------------
     // CAPTURE
@@ -261,6 +275,8 @@ class PatternEngine
                 pattern_[playIndex_] = liveStep;
             }
         }
+
+        lastPlayedIndex_ = playIndex_;
 
         const ChaosStep result = pattern_[playIndex_];
 

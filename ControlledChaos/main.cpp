@@ -60,28 +60,28 @@ int main(void)
             output = chaos.Tick();
         }
 
-        if(clockEngine.Tick(5.0))
-{
-    const ChaosStep liveStep(
-        output.A,
-        output.B,
-        output.C,
-        output.D);
+        if(clockEngine.Tick(5.0)){
+            const ChaosStep liveStep(
+                output.A,
+                output.B,
+                output.C,
+                output.D);
 
-    const ChaosStep patternStep =
-        patternEngine.Next(liveStep);
+            const ChaosStep patternStep =
+                patternEngine.Next(liveStep);
 
-    hardware.PrintLine(
-        "STEP %d  A=" FLT_FMT(3)
-        " B=" FLT_FMT(3)
-        " C=" FLT_FMT(3)
-        " D=" FLT_FMT(3),
-        static_cast<int>(clockEngine.GetStepCount()),
-        FLT_VAR(3, patternStep.A),
-        FLT_VAR(3, patternStep.B),
-        FLT_VAR(3, patternStep.C),
-        FLT_VAR(3, patternStep.D));
-}
+            hardware.PrintLine(
+                "STEP %d/%d  A=" FLT_FMT(3)
+                " B=" FLT_FMT(3)
+                " C=" FLT_FMT(3)
+                " D=" FLT_FMT(3),
+                patternEngine.GetLastPlayedPosition(),
+                patternEngine.GetLength(),
+                FLT_VAR(3, patternStep.A),
+                FLT_VAR(3, patternStep.B),
+                FLT_VAR(3, patternStep.C),
+                FLT_VAR(3, patternStep.D));
+        }
 
         hardware.DelayMs(5);
     }
