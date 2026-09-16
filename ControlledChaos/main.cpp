@@ -4,14 +4,11 @@
 #include "DebugConsole.h"
 #include "ChaosStep.h"
 #include "PatternEngine.h"
-
+#include "ClockEngine.h"
 
 using namespace daisy;
 
 DaisySeed hardware;
-ChaosEngine engine;
-PatternEngine patternEngine;
-DebugConsole console;
 
 int main(void)
 {
@@ -34,6 +31,9 @@ int main(void)
         chaos.Tick();
 
     PatternEngine patternEngine;
+
+    ClockEngine clockEngine;
+    clockEngine.Init(120.0);
 
     DebugConsole console;
     console.Init(
@@ -60,16 +60,28 @@ int main(void)
             output = chaos.Tick();
         }
 
-        const ChaosStep liveStep(
-            output.A,
-            output.B,
-            output.C,
-            output.D);
+        if(clockEngine.Tick(5.0))
+{
+    const ChaosStep liveStep(
+        output.A,
+        output.B,
+        output.C,
+        output.D);
 
-        const ChaosStep patternStep =
-            patternEngine.Next(liveStep);
+    const ChaosStep patternStep =
+        patternEngine.Next(liveStep);
 
-        hardware.SetLed(patternStep.A > 0.0);
+    hardware.PrintLine(
+        "STEP %d  A=" FLT_FMT(3)
+        " B=" FLT_FMT(3)
+        " C=" FLT_FMT(3)
+        " D=" FLT_FMT(3),
+        static_cast<int>(clockEngine.GetStepCount()),
+        FLT_VAR(3, patternStep.A),
+        FLT_VAR(3, patternStep.B),
+        FLT_VAR(3, patternStep.C),
+        FLT_VAR(3, patternStep.D));
+}
 
         hardware.DelayMs(5);
     }
