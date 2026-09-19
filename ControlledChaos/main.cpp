@@ -38,7 +38,7 @@ int main(void)
     0xFFFF,
     2);
 
-    display.DrawVersion(200,4,CONTROLLED_CHAOS_VERSION,0xFFFF);
+    //display.DrawVersion(200,4,CONTROLLED_CHAOS_VERSION,0xFFFF);
 
     static constexpr int TrailLength = 80;
 
@@ -65,11 +65,7 @@ int main(void)
 
     PatternEngine patternEngine;
 
-    display.DrawText(
-        4,
-        305,
-        "LIVE",
-        0xFFFF);
+    display.DrawText(4,305,"LIVE",0xFFFF);
 
     ClockEngine clockEngine;
     clockEngine.Init(120.0);
@@ -102,10 +98,41 @@ int main(void)
     int previousMarkerY[PatternEngine::MaxPatternLength] = {};
     bool previousMarkerValid[PatternEngine::MaxPatternLength] = {};
     constexpr uint16_t FrozenColor = 0x7DFF;
-
+    uint32_t lastClockTime = System::GetNow();
+    int lastDisplayedBpm = -1;
     while (1)
     {
         console.Process();
+
+        const int currentBpm =
+        static_cast<int>(clockEngine.GetBpm());
+
+        if(currentBpm != lastDisplayedBpm)
+        {
+            char bpmText[16];
+
+            snprintf(
+                bpmText,
+                sizeof(bpmText),
+                "%d BPM",
+                currentBpm);
+
+            // Bereich oben rechts löschen
+            display.FillRect(
+                188,
+                4,
+                52,
+                10,
+                0x0000);
+
+            display.DrawText(
+                194,
+                5,
+                bpmText,
+                0xFFFF);
+
+            lastDisplayedBpm = currentBpm;
+        }
 
         const bool frozen = console.IsFrozen();
 
@@ -310,8 +337,16 @@ int main(void)
                 }
 
                 // --------------------------------------------------------
-                // 2. Aktuelle Pattern-Marker gelb zeichnen
+                // 2. Aktuelle Pattern-Marker zeichnen
+                //
+                // Gelb  = gespeicherter Step
+                // Weiss = aktuell gespielter Step
                 // --------------------------------------------------------
+
+                const int activeStep =
+                    patternEngine.GetMode() == PatternMode::Loop
+                        ? patternEngine.GetLastPlayedPosition() - 1
+                        : -1;
 
                 for(int i = 0; i < PatternEngine::MaxPatternLength; ++i)
                 {
@@ -327,12 +362,27 @@ int main(void)
                             StepToY(step);
 
                         if(markerX >= 1 && markerX < 239 &&
-                        markerY >= 26 && markerY < 284)
+                           markerY >= 26 && markerY < 284)
                         {
-                            display.DrawMarker(
-                                markerX,
-                                markerY,
-                                0xFFE0);
+                            const uint16_t markerColor =
+                                i == activeStep
+                                    ? 0xFFFF   // Weiss: wird gerade gespielt
+                                    : 0xFFE0;  // Gelb: gespeicherter Step
+
+                            if(i == activeStep)
+                            {
+                                display.DrawMarker(
+                                    markerX,
+                                    markerY,
+                                    0x001F); // Blau
+                            }
+                            else
+                            {
+                                display.DrawMarker(
+                                    markerX,
+                                    markerY,
+                                    0xFFE0); // gelber gespeicherter Step
+                            }
 
                             previousMarkerX[i] = markerX;
                             previousMarkerY[i] = markerY;
@@ -351,7 +401,13 @@ int main(void)
             }
         }
 
-        if(clockEngine.Tick(5.0))
+        const uint32_t now = System::GetNow();
+
+        const uint32_t elapsedMs = now - lastClockTime;
+
+        lastClockTime = now;
+
+        if(clockEngine.Tick(static_cast<double>(elapsedMs)))
         {
             const ChaosStep liveStep(
                 output.A,

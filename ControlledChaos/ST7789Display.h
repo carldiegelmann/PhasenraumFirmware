@@ -407,12 +407,65 @@ class ST7789Display
     int y,
     uint16_t color)
     {
-        FillRect(
-            x - 1,
-            y - 1,
-            2,
-            2,
-            color);
+        static const uint8_t star[7] =
+        {
+            0b1001001,
+            0b0101010,
+            0b0011100,
+            0b1111111,
+            0b0011100,
+            0b0101010,
+            0b1001001
+        };
+
+        for(int row = 0; row < 7; ++row)
+        {
+            for(int col = 0; col < 7; ++col)
+            {
+                if(star[row] & (1 << (6 - col)))
+                {
+                    const int px = x + col - 3;
+                    const int py = y + row - 3;
+
+                    if(px >= 0 && px < 240 &&
+                    py >= 0 && py < 320)
+                    {
+                        DrawPixel(
+                            static_cast<uint16_t>(px),
+                            static_cast<uint16_t>(py),
+                            color);
+                    }
+                }
+            }
+        }
+    }
+
+    void DrawActiveMarker(
+    int x,
+    int y,
+    uint16_t color)
+    {
+        // Zentrum
+        DrawMarker(x, y, color);
+
+        // großer vertikaler Strahl
+        for(int d = -5; d <= 5; ++d)
+        {
+            DrawPixel(x, y + d, color);
+        }
+
+        // großer horizontaler Strahl
+        for(int d = -5; d <= 5; ++d)
+        {
+            DrawPixel(x + d, y, color);
+        }
+
+        // diagonale Strahlen
+        for(int d = -3; d <= 3; ++d)
+        {
+            DrawPixel(x + d, y + d, color);
+            DrawPixel(x + d, y - d, color);
+        }
     }
 
   private:
@@ -682,6 +735,14 @@ class ST7789Display
             glyph[2] = 0x11;
             glyph[3] = 0x11;
             glyph[4] = 0x7E;
+            break;
+        
+        case 'B':
+            glyph[0] = 0x7F;
+            glyph[1] = 0x49;
+            glyph[2] = 0x49;
+            glyph[3] = 0x49;
+            glyph[4] = 0x36;
             break;
 
         case 'E':
