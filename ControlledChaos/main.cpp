@@ -86,6 +86,7 @@ int main(void)
 
     int statusRefreshCounter = 0;
     char lastStatus[32] = "LIVE";
+    bool lastFrozenState = false;
 
     auto StepToX = [](const ChaosStep& step)
     {
@@ -100,10 +101,72 @@ int main(void)
     int previousMarkerX[PatternEngine::MaxPatternLength] = {};
     int previousMarkerY[PatternEngine::MaxPatternLength] = {};
     bool previousMarkerValid[PatternEngine::MaxPatternLength] = {};
+    constexpr uint16_t FrozenColor = 0x7DFF;
 
     while (1)
     {
         console.Process();
+
+        const bool frozen = console.IsFrozen();
+
+        if(frozen != lastFrozenState)
+        {
+            display.FillRect(
+                150,
+                302,
+                90,
+                12,
+                0x0000);
+
+            if(frozen)
+            {
+                display.DrawText(
+                    194,
+                    305,
+                    "FROZEN",
+                    FrozenColor);
+
+                for(int i = 1; i < trailCount; ++i)
+                {
+                    display.DrawLine(
+                        trailX[i - 1],
+                        trailY[i - 1],
+                        trailX[i],
+                        trailY[i],
+                        FrozenColor);
+                }
+            }
+            else
+            {
+                // Trail wieder nach Alter einfärben
+                for(int i = 1; i < trailCount; ++i)
+                {
+                    uint16_t color;
+
+                    const double age =
+                        static_cast<double>(i)
+                        / static_cast<double>(trailCount);
+
+                    if(age < 0.25)
+                        color = 0x39E7;      // dunkelgrau
+                    else if(age < 0.50)
+                        color = 0x7BEF;      // grau
+                    else if(age < 0.75)
+                        color = 0xC618;      // hellgrau
+                    else
+                        color = 0xFFFF;      // weiß
+
+                    display.DrawLine(
+                        trailX[i - 1],
+                        trailY[i - 1],
+                        trailX[i],
+                        trailY[i],
+                        color);
+                }
+            }
+
+            lastFrozenState = frozen;
+        }
 
         ChaosOutput output;
 
@@ -122,164 +185,168 @@ int main(void)
 
         // Display nicht bei jedem Chaos-Tick aktualisieren.
         // 4 * 5 ms ≈ 20 ms -> ungefähr 50 Updates/s.
-        displayDivider++;
-
-        if(displayDivider >= 4)
+        if(!frozen)
         {
-            displayDivider = 0;
+        
+            displayDivider++;
 
-            if(x >= 0 && x < 240 &&
-            y >= 25 && y < 285)
+            if(displayDivider >= 4)
             {
-                // Trail voll?
-                if(trailCount >= TrailLength)
-                {
-                    display.DrawLine(
-                        trailX[0],
-                        trailY[0],
-                        trailX[1],
-                        trailY[1],
-                        0x0000);
+                displayDivider = 0;
 
-                    for(int i = 1; i < TrailLength; ++i)
+                if(x >= 0 && x < 240 &&
+                y >= 25 && y < 285)
+                {
+                    // Trail voll?
+                    if(trailCount >= TrailLength)
                     {
-                        trailX[i - 1] = trailX[i];
-                        trailY[i - 1] = trailY[i];
-                    }
-
-                    trailCount = TrailLength - 1;
-                }
-
-                trailX[trailCount] = x;
-                trailY[trailCount] = y;
-                trailCount++;
-
-                if(trailCount >= 2)
-                {
-                    display.DrawLine(
-                        trailX[trailCount - 2],
-                        trailY[trailCount - 2],
-                        trailX[trailCount - 1],
-                        trailY[trailCount - 1],
-                        0xFFFF);
-                }
-
-                // Fade-Zonen
-                if(trailCount == TrailLength)
-                {
-                    const int darkIndex = 20;
-
-                    display.DrawLine(
-                        trailX[darkIndex],
-                        trailY[darkIndex],
-                        trailX[darkIndex + 1],
-                        trailY[darkIndex + 1],
-                        0x39E7);
-
-                    const int midIndex = 40;
-
-                    display.DrawLine(
-                        trailX[midIndex],
-                        trailY[midIndex],
-                        trailX[midIndex + 1],
-                        trailY[midIndex + 1],
-                        0x7BEF);
-
-                    const int brightIndex = 60;
-
-                    display.DrawLine(
-                        trailX[brightIndex],
-                        trailY[brightIndex],
-                        trailX[brightIndex + 1],
-                        trailY[brightIndex + 1],
-                        0xC618);
-                }
-            }
-
-            // --------------------------------------------------------
-            // PATTERN-MARKER IMMER ZULETZT ZEICHNEN
-            // Dadurch liegen sie über dem Trail.
-            // --------------------------------------------------------
-
-            const int markerCount = patternEngine.GetCapturedSteps();
-
-            // --------------------------------------------------------
-            // 1. Alte Marker entfernen, wenn sie nicht mehr existieren
-            //    oder durch Mutation an eine andere Position gewandert sind.
-            // --------------------------------------------------------
-
-            for(int i = 0; i < PatternEngine::MaxPatternLength; ++i)
-            {
-                const bool currentValid =
-                    i < markerCount;
-
-                int currentX = 0;
-                int currentY = 0;
-
-                if(currentValid)
-                {
-                    const ChaosStep& step =
-                        patternEngine.GetStep(i);
-
-                    currentX = StepToX(step);
-                    currentY = StepToY(step);
-                }
-
-                if(previousMarkerValid[i])
-                {
-                    const bool moved =
-                        !currentValid ||
-                        currentX != previousMarkerX[i] ||
-                        currentY != previousMarkerY[i];
-
-                    if(moved)
-                    {
-                        // alten gelben Marker löschen
-                        display.DrawMarker(
-                            previousMarkerX[i],
-                            previousMarkerY[i],
+                        display.DrawLine(
+                            trailX[0],
+                            trailY[0],
+                            trailX[1],
+                            trailY[1],
                             0x0000);
+
+                        for(int i = 1; i < TrailLength; ++i)
+                        {
+                            trailX[i - 1] = trailX[i];
+                            trailY[i - 1] = trailY[i];
+                        }
+
+                        trailCount = TrailLength - 1;
+                    }
+
+                    trailX[trailCount] = x;
+                    trailY[trailCount] = y;
+                    trailCount++;
+
+                    if(trailCount >= 2)
+                    {
+                        display.DrawLine(
+                            trailX[trailCount - 2],
+                            trailY[trailCount - 2],
+                            trailX[trailCount - 1],
+                            trailY[trailCount - 1],
+                            0xFFFF);
+                    }
+
+                    // Fade-Zonen
+                    if(trailCount == TrailLength)
+                    {
+                        const int darkIndex = 20;
+
+                        display.DrawLine(
+                            trailX[darkIndex],
+                            trailY[darkIndex],
+                            trailX[darkIndex + 1],
+                            trailY[darkIndex + 1],
+                            0x39E7);
+
+                        const int midIndex = 40;
+
+                        display.DrawLine(
+                            trailX[midIndex],
+                            trailY[midIndex],
+                            trailX[midIndex + 1],
+                            trailY[midIndex + 1],
+                            0x7BEF);
+
+                        const int brightIndex = 60;
+
+                        display.DrawLine(
+                            trailX[brightIndex],
+                            trailY[brightIndex],
+                            trailX[brightIndex + 1],
+                            trailY[brightIndex + 1],
+                            0xC618);
                     }
                 }
-            }
 
-            // --------------------------------------------------------
-            // 2. Aktuelle Pattern-Marker gelb zeichnen
-            // --------------------------------------------------------
+                // --------------------------------------------------------
+                // PATTERN-MARKER IMMER ZULETZT ZEICHNEN
+                // Dadurch liegen sie über dem Trail.
+                // --------------------------------------------------------
 
-            for(int i = 0; i < PatternEngine::MaxPatternLength; ++i)
-            {
-                if(i < markerCount)
+                const int markerCount = patternEngine.GetCapturedSteps();
+
+                // --------------------------------------------------------
+                // 1. Alte Marker entfernen, wenn sie nicht mehr existieren
+                //    oder durch Mutation an eine andere Position gewandert sind.
+                // --------------------------------------------------------
+
+                for(int i = 0; i < PatternEngine::MaxPatternLength; ++i)
                 {
-                    const ChaosStep& step =
-                        patternEngine.GetStep(i);
+                    const bool currentValid =
+                        i < markerCount;
 
-                    const int markerX =
-                        StepToX(step);
+                    int currentX = 0;
+                    int currentY = 0;
 
-                    const int markerY =
-                        StepToY(step);
-
-                    if(markerX >= 1 && markerX < 239 &&
-                    markerY >= 26 && markerY < 284)
+                    if(currentValid)
                     {
-                        display.DrawMarker(
-                            markerX,
-                            markerY,
-                            0xFFE0);
+                        const ChaosStep& step =
+                            patternEngine.GetStep(i);
 
-                        previousMarkerX[i] = markerX;
-                        previousMarkerY[i] = markerY;
-                        previousMarkerValid[i] = true;
+                        currentX = StepToX(step);
+                        currentY = StepToY(step);
+                    }
+
+                    if(previousMarkerValid[i])
+                    {
+                        const bool moved =
+                            !currentValid ||
+                            currentX != previousMarkerX[i] ||
+                            currentY != previousMarkerY[i];
+
+                        if(moved)
+                        {
+                            // alten gelben Marker löschen
+                            display.DrawMarker(
+                                previousMarkerX[i],
+                                previousMarkerY[i],
+                                0x0000);
+                        }
+                    }
+                }
+
+                // --------------------------------------------------------
+                // 2. Aktuelle Pattern-Marker gelb zeichnen
+                // --------------------------------------------------------
+
+                for(int i = 0; i < PatternEngine::MaxPatternLength; ++i)
+                {
+                    if(i < markerCount)
+                    {
+                        const ChaosStep& step =
+                            patternEngine.GetStep(i);
+
+                        const int markerX =
+                            StepToX(step);
+
+                        const int markerY =
+                            StepToY(step);
+
+                        if(markerX >= 1 && markerX < 239 &&
+                        markerY >= 26 && markerY < 284)
+                        {
+                            display.DrawMarker(
+                                markerX,
+                                markerY,
+                                0xFFE0);
+
+                            previousMarkerX[i] = markerX;
+                            previousMarkerY[i] = markerY;
+                            previousMarkerValid[i] = true;
+                        }
+                        else
+                        {
+                            previousMarkerValid[i] = false;
+                        }
                     }
                     else
                     {
                         previousMarkerValid[i] = false;
                     }
-                }
-                else
-                {
-                    previousMarkerValid[i] = false;
                 }
             }
         }

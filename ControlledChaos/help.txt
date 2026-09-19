@@ -1,0 +1,9 @@
+Build
+
+make clean
+
+make
+
+make program-dfu
+
+screen /dev/cu.usbmodem3571337A34331 115200

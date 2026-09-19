@@ -692,6 +692,14 @@ class ST7789Display
             glyph[4] = 0x41;
             break;
 
+        case 'F':
+            glyph[0] = 0x7F;
+            glyph[1] = 0x09;
+            glyph[2] = 0x09;
+            glyph[3] = 0x09;
+            glyph[4] = 0x01;
+            break;
+
         case 'H':
             glyph[0] = 0x7F;
             glyph[1] = 0x08;
@@ -778,6 +786,15 @@ class ST7789Display
             glyph[2] = 0x40;
             glyph[3] = 0x20;
             glyph[4] = 0x1F;
+            break;
+
+
+        case 'Z':
+            glyph[0] = 0x61;
+            glyph[1] = 0x51;
+            glyph[2] = 0x49;
+            glyph[3] = 0x45;
+            glyph[4] = 0x43;
             break;
 
         case '/':
