@@ -220,68 +220,200 @@ class ST7789Display
         }
     }
 
+    void DrawStepProgress(
+    int x,
+    int y,
+    int width,
+    int height,
+    int current,
+    int total)
+    {
+        if(total <= 0)
+            return;
+
+        if(current < 0)
+            current = 0;
+
+        if(current > total)
+            current = total;
+
+        const int gap = 2;
+
+        const int availableWidth =
+            width - ((total - 1) * gap);
+
+        const int segmentWidth =
+            availableWidth / total;
+
+        for(int i = 0; i < total; ++i)
+        {
+            const int segmentX =
+                x + i * (segmentWidth + gap);
+
+            const uint16_t color =
+                (i < current)
+                    ? 0xFFFF     // weiß = captured
+                    : 0x2104;    // dunkelgrau = noch leer
+
+            FillRect(
+                segmentX,
+                y,
+                segmentWidth,
+                height,
+                color);
+        }
+    }
+
+    void DrawLoopPosition(
+    int x,
+    int y,
+    int width,
+    int height,
+    int current,
+    int total,
+    bool mutated)
+{
+    if(total <= 0)
+        return;
+
+    if(current < 1)
+        current = 1;
+
+    if(current > total)
+        current = total;
+
+    const int gap = 2;
+
+    const int availableWidth =
+        width - ((total - 1) * gap);
+
+    const int segmentWidth =
+        availableWidth / total;
+
+    for(int i = 0; i < total; ++i)
+    {
+        const int segmentX =
+            x + i * (segmentWidth + gap);
+
+        uint16_t color = 0x2104; // dunkelgrau
+
+        if(i == current - 1)
+        {
+            if(mutated)
+            {
+                color = 0xFD20;  // orange
+            }
+            else
+            {
+                color = 0xFFFF;  // weiß
+            }
+        }
+
+        FillRect(
+            segmentX,
+            y,
+            segmentWidth,
+            height,
+            color);
+    }
+}
+
     void FillRect(
     int x,
     int y,
     int width,
     int height,
     uint16_t color)
-{
-    if(width <= 0 || height <= 0)
-        return;
-
-    if(x < 0 || y < 0)
-        return;
-
-    if(x + width > 240)
-        width = 240 - x;
-
-    if(y + height > 320)
-        height = 320 - y;
-
-    SetAddressWindow(
-        static_cast<uint16_t>(x),
-        static_cast<uint16_t>(y),
-        static_cast<uint16_t>(x + width - 1),
-        static_cast<uint16_t>(y + height - 1));
-
-    Command(0x2C);
-
-    cs_.Write(0);
-    dc_.Write(1);
-
-    const uint8_t high =
-        static_cast<uint8_t>(color >> 8);
-
-    const uint8_t low =
-        static_cast<uint8_t>(color & 0xFF);
-
-    uint8_t buffer[128];
-
-    for(size_t i = 0; i < sizeof(buffer); i += 2)
     {
-        buffer[i]     = high;
-        buffer[i + 1] = low;
+        if(width <= 0 || height <= 0)
+            return;
+
+        if(x < 0 || y < 0)
+            return;
+
+        if(x + width > 240)
+            width = 240 - x;
+
+        if(y + height > 320)
+            height = 320 - y;
+
+        SetAddressWindow(
+            static_cast<uint16_t>(x),
+            static_cast<uint16_t>(y),
+            static_cast<uint16_t>(x + width - 1),
+            static_cast<uint16_t>(y + height - 1));
+
+        Command(0x2C);
+
+        cs_.Write(0);
+        dc_.Write(1);
+
+        const uint8_t high =
+            static_cast<uint8_t>(color >> 8);
+
+        const uint8_t low =
+            static_cast<uint8_t>(color & 0xFF);
+
+        uint8_t buffer[128];
+
+        for(size_t i = 0; i < sizeof(buffer); i += 2)
+        {
+            buffer[i]     = high;
+            buffer[i + 1] = low;
+        }
+
+        int pixelsRemaining = width * height;
+
+        while(pixelsRemaining > 0)
+        {
+            int pixelsThisTime = 64;
+
+            if(pixelsThisTime > pixelsRemaining)
+                pixelsThisTime = pixelsRemaining;
+
+            spi_.BlockingTransmit(
+                buffer,
+                pixelsThisTime * 2);
+
+            pixelsRemaining -= pixelsThisTime;
+        }
+
+        cs_.Write(1);
     }
 
-    int pixelsRemaining = width * height;
-
-    while(pixelsRemaining > 0)
+    void DrawTextScaled(
+        int x,
+        int y,
+        const char* text,
+        uint16_t color,
+        int scale)
     {
-        int pixelsThisTime = 64;
+        while(*text)
+        {
+            DrawCharScaled(
+                x,
+                y,
+                *text,
+                color,
+                scale);
 
-        if(pixelsThisTime > pixelsRemaining)
-            pixelsThisTime = pixelsRemaining;
-
-        spi_.BlockingTransmit(
-            buffer,
-            pixelsThisTime * 2);
-
-        pixelsRemaining -= pixelsThisTime;
+            x += 6 * scale;
+            ++text;
+        }
     }
 
-    cs_.Write(1);
-}
+    void DrawMarker(
+    int x,
+    int y,
+    uint16_t color)
+    {
+        FillRect(
+            x - 1,
+            y - 1,
+            2,
+            2,
+            color);
+    }
 
   private:
     DaisySeed* hardware_ = nullptr;
@@ -332,6 +464,110 @@ class ST7789Display
         Data(y0 & 0xFF);
         Data(y1 >> 8);
         Data(y1 & 0xFF);
+    }
+
+        void DrawCharScaled(
+        int x,
+        int y,
+        char c,
+        uint16_t color,
+        int scale)
+    {
+        uint8_t glyph[5] = {0, 0, 0, 0, 0};
+
+        switch(c)
+        {
+            case 'A':
+                glyph[0] = 0x7E;
+                glyph[1] = 0x11;
+                glyph[2] = 0x11;
+                glyph[3] = 0x11;
+                glyph[4] = 0x7E;
+                break;
+
+            case 'E':
+                glyph[0] = 0x7F;
+                glyph[1] = 0x49;
+                glyph[2] = 0x49;
+                glyph[3] = 0x49;
+                glyph[4] = 0x41;
+                break;
+
+            case 'H':
+                glyph[0] = 0x7F;
+                glyph[1] = 0x08;
+                glyph[2] = 0x08;
+                glyph[3] = 0x08;
+                glyph[4] = 0x7F;
+                break;
+
+            case 'M':
+                glyph[0] = 0x7F;
+                glyph[1] = 0x02;
+                glyph[2] = 0x0C;
+                glyph[3] = 0x02;
+                glyph[4] = 0x7F;
+                break;
+
+            case 'N':
+                glyph[0] = 0x7F;
+                glyph[1] = 0x04;
+                glyph[2] = 0x08;
+                glyph[3] = 0x10;
+                glyph[4] = 0x7F;
+                break;
+
+            case 'P':
+                glyph[0] = 0x7F;
+                glyph[1] = 0x09;
+                glyph[2] = 0x09;
+                glyph[3] = 0x09;
+                glyph[4] = 0x06;
+                break;
+
+            case 'R':
+                glyph[0] = 0x7F;
+                glyph[1] = 0x09;
+                glyph[2] = 0x19;
+                glyph[3] = 0x29;
+                glyph[4] = 0x46;
+                break;
+
+            case 'S':
+                glyph[0] = 0x46;
+                glyph[1] = 0x49;
+                glyph[2] = 0x49;
+                glyph[3] = 0x49;
+                glyph[4] = 0x31;
+                break;
+
+            case 'U':
+                glyph[0] = 0x3F;
+                glyph[1] = 0x40;
+                glyph[2] = 0x40;
+                glyph[3] = 0x40;
+                glyph[4] = 0x3F;
+                break;
+
+            default:
+                return;
+        }
+
+        for(int col = 0; col < 5; ++col)
+        {
+            for(int row = 0; row < 7; ++row)
+            {
+                if(glyph[col] & (1 << row))
+                {
+                    FillRect(
+                        x + col * scale,
+                        y + row * scale,
+                        scale,
+                        scale,
+                        color);
+                }
+            }
+        }
     }
 
     void DrawChar(

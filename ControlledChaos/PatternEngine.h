@@ -84,22 +84,24 @@ class PatternEngine
     // ------------------------------------------------------------
 
     ChaosStep Next(const ChaosStep& liveStep)
+{
+    lastStepMutated_ = false;
+
+    switch(mode_)
     {
-        switch(mode_)
-        {
-            case PatternMode::Live:
-                return liveStep;
+        case PatternMode::Live:
+            return liveStep;
 
-            case PatternMode::Capturing:
-                return CaptureNext(liveStep);
+        case PatternMode::Capturing:
+            return CaptureNext(liveStep);
 
-            case PatternMode::Loop:
-                return LoopNext(liveStep);
+        case PatternMode::Loop:
+            return LoopNext(liveStep);
 
-            default:
-                return liveStep;
-        }
+        default:
+            return liveStep;
     }
+}
 
     // ------------------------------------------------------------
     // LENGTH
@@ -194,6 +196,11 @@ class PatternEngine
         return lastPlayedIndex_ + 1;
     }
 
+    bool WasLastStepMutated() const
+    {
+        return lastStepMutated_;
+    }
+
   private:
     ChaosStep pattern_[MaxPatternLength];
 
@@ -207,7 +214,11 @@ class PatternEngine
 
     double mutation_ = 0.0;
 
+    bool lastStepMutated_ = false;
+
     uint64_t mutationState_ = 0x123456789ABCDEF0ULL;
+
+
 
     // ------------------------------------------------------------
     // CAPTURE
@@ -273,6 +284,7 @@ class PatternEngine
             if(randomValue < mutation_)
             {
                 pattern_[playIndex_] = liveStep;
+                lastStepMutated_ = true;
             }
         }
 
