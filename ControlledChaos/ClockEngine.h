@@ -14,7 +14,13 @@ public:
 
     void SetBpm(double bpm)
     {
-        bpm_ = ClampBpm(bpm);
+        if(bpm < 30.0)
+            bpm = 30.0;
+
+        if(bpm > 300.0)
+            bpm = 300.0;
+
+        bpm_ = bpm;
     }
 
     double GetBpm() const
@@ -22,10 +28,25 @@ public:
         return bpm_;
     }
 
-    // v0.1: one step = quarter note
     double GetStepIntervalMs() const
     {
-        return 60000.0 / bpm_;
+        return (60000.0 / bpm_) / rate_;
+    }
+
+    void SetRate(double rate)
+    {
+        if(rate == 0.5 ||
+        rate == 1.0 ||
+        rate == 2.0 ||
+        rate == 4.0)
+        {
+            rate_ = rate;
+        }
+    }
+
+    double GetRate() const
+    {
+        return rate_;
     }
 
     // Call continuously with elapsed real time.
@@ -71,6 +92,8 @@ private:
     }
 
     double bpm_ = 120.0;
+    double rate_ = 1.0;
     double elapsedMs_ = 0.0;
     uint64_t stepCount_ = 0;
+
 };

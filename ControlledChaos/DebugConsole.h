@@ -3,6 +3,7 @@
 #include "daisy_seed.h"
 #include "ChaosEngine.h"
 #include "PatternEngine.h"
+#include "ClockEngine.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -17,10 +18,15 @@ class DebugConsole
     // ================================================================
 
     void Init(
-        daisy::DaisySeed* hardware,
-        ChaosEngine* chaos,
-        PatternEngine* patternEngine)
+    daisy::DaisySeed* hardware,
+    ChaosEngine* chaos,
+    PatternEngine* patternEngine,
+    ClockEngine* clockEngine)
     {
+        hardware_ = hardware;
+        chaos_ = chaos;
+        patternEngine_ = patternEngine;
+        clockEngine_ = clockEngine;
         hardware_ = hardware;
         chaos_ = chaos;
         patternEngine_ = patternEngine;
@@ -123,6 +129,14 @@ class DebugConsole
                 3,
                 patternEngine_->GetMutation()));
 
+        hardware_->PrintLine(
+            "BPM=" FLT_FMT(1),
+            FLT_VAR(1, clockEngine_->GetBpm()));
+
+        hardware_->PrintLine(
+            "Rate=" FLT_FMT(1),
+            FLT_VAR(1, clockEngine_->GetRate()));
+
         PrintOutput(output);
 
         hardware_->PrintLine("");
@@ -150,6 +164,9 @@ class DebugConsole
     char commandLine_[CommandBufferSize] = {};
 
     volatile bool lineReady_ = false;
+
+    ClockEngine* clockEngine_ = nullptr;
+
 
     // ================================================================
     // SINGLETON ACCESS FOR USB CALLBACK
@@ -572,6 +589,77 @@ class DebugConsole
         }
 
         // ------------------------------------------------------------
+        // BPM
+        // ------------------------------------------------------------
+
+        if(StartsWith(line, "bpm "))
+        {
+            double value;
+
+            if(ParseDouble(
+                line + 4,
+                value))
+            {
+                if(value < 30.0)
+                    value = 30.0;
+
+                if(value > 300.0)
+                    value = 300.0;
+
+                clockEngine_->SetBpm(value);
+
+                hardware_->PrintLine(
+                    "BPM=" FLT_FMT(1),
+                    FLT_VAR(
+                        1,
+                        clockEngine_->GetBpm()));
+            }
+            else
+            {
+                hardware_->PrintLine(
+                    "ERR invalid bpm value");
+            }
+
+            return;
+        }
+
+        // ------------------------------------------------------------
+        // RATE
+        // ------------------------------------------------------------
+
+        if(StartsWith(line, "rate "))
+        {
+            double value;
+
+            if(ParseDouble(line + 5, value))
+            {
+                if(value == 0.5 ||
+                value == 1.0 ||
+                value == 2.0 ||
+                value == 4.0)
+                {
+                    clockEngine_->SetRate(value);
+
+                    hardware_->PrintLine(
+                        "Rate=" FLT_FMT(1),
+                        FLT_VAR(1, clockEngine_->GetRate()));
+                }
+                else
+                {
+                    hardware_->PrintLine(
+                        "ERR rate must be 0.5, 1, 2 or 4");
+                }
+            }
+            else
+            {
+                hardware_->PrintLine(
+                    "ERR invalid rate value");
+            }
+
+            return;
+        }
+
+        // ------------------------------------------------------------
         // UNKNOWN
         // ------------------------------------------------------------
 
@@ -647,6 +735,12 @@ class DebugConsole
 
         hardware_->PrintLine(
             "live");
+
+        hardware_->PrintLine(
+            "bpm <30..300>");
+
+        hardware_->PrintLine(
+            "rate <0.5|1|2|4>");
 
         hardware_->PrintLine(
             "reset");

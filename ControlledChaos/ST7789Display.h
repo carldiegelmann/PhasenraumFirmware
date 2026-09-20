@@ -8,75 +8,84 @@ class ST7789Display
 {
   public:
     void Init(DaisySeed* hardware)
-    {
-        hardware_ = hardware;
+{
+    hardware_ = hardware;
 
-        // Steuerpins
-        dc_.Init(seed::D5, GPIO::Mode::OUTPUT);
-        rst_.Init(seed::D6, GPIO::Mode::OUTPUT);
-        cs_.Init(seed::D7, GPIO::Mode::OUTPUT);
-        bl_.Init(seed::D4, GPIO::Mode::OUTPUT);
+    // Steuerpins
+    dc_.Init(seed::D5, GPIO::Mode::OUTPUT);
+    rst_.Init(seed::D6, GPIO::Mode::OUTPUT);
+    cs_.Init(seed::D7, GPIO::Mode::OUTPUT);
+    bl_.Init(seed::D4, GPIO::Mode::OUTPUT);
 
-        cs_.Write(1);
-        dc_.Write(1);
-        rst_.Write(1);
-        bl_.Write(1);
+    // Backlight während der Initialisierung aus
+    bl_.Write(0);
 
-        // SPI1
-        SpiHandle::Config spiConfig;
-        spiConfig.periph = SpiHandle::Config::Peripheral::SPI_1;
-        spiConfig.mode = SpiHandle::Config::Mode::MASTER;
-        spiConfig.direction = SpiHandle::Config::Direction::TWO_LINES_TX_ONLY;
-        spiConfig.datasize = 8;
-        spiConfig.clock_polarity = SpiHandle::Config::ClockPolarity::LOW;
-        spiConfig.clock_phase = SpiHandle::Config::ClockPhase::ONE_EDGE;
-        spiConfig.nss = SpiHandle::Config::NSS::SOFT;
-        spiConfig.baud_prescaler = SpiHandle::Config::BaudPrescaler::PS_16;
+    cs_.Write(1);
+    dc_.Write(1);
+    rst_.Write(1);
 
-        spiConfig.pin_config.sclk = seed::D8;
-        spiConfig.pin_config.mosi = seed::D10;
-        spiConfig.pin_config.miso = Pin();
-        spiConfig.pin_config.nss  = Pin();
+    // SPI1
+    SpiHandle::Config spiConfig;
+    spiConfig.periph = SpiHandle::Config::Peripheral::SPI_1;
+    spiConfig.mode = SpiHandle::Config::Mode::MASTER;
+    spiConfig.direction = SpiHandle::Config::Direction::TWO_LINES_TX_ONLY;
+    spiConfig.datasize = 8;
+    spiConfig.clock_polarity = SpiHandle::Config::ClockPolarity::LOW;
+    spiConfig.clock_phase = SpiHandle::Config::ClockPhase::ONE_EDGE;
+    spiConfig.nss = SpiHandle::Config::NSS::SOFT;
+    spiConfig.baud_prescaler = SpiHandle::Config::BaudPrescaler::PS_16;
 
-        spi_.Init(spiConfig);
+    spiConfig.pin_config.sclk = seed::D8;
+    spiConfig.pin_config.mosi = seed::D10;
+    spiConfig.pin_config.miso = Pin();
+    spiConfig.pin_config.nss  = Pin();
 
-        // Hardware Reset
-        hardware_->DelayMs(20);
+    spi_.Init(spiConfig);
 
-        rst_.Write(0);
-        hardware_->DelayMs(20);
+    // Hardware Reset
+    hardware_->DelayMs(20);
 
-        rst_.Write(1);
-        hardware_->DelayMs(150);
+    rst_.Write(0);
+    hardware_->DelayMs(20);
 
-        // Software reset
-        Command(0x01);
-        hardware_->DelayMs(150);
+    rst_.Write(1);
+    hardware_->DelayMs(150);
 
-        // Sleep out
-        Command(0x11);
-        hardware_->DelayMs(150);
+    // Software reset
+    Command(0x01);
+    hardware_->DelayMs(150);
 
-        // Inversion ON - bei vielen 2" ST7789 Panels nötig
-        Command(0x21);
+    // Sleep out
+    Command(0x11);
+    hardware_->DelayMs(150);
 
-        // 16 Bit RGB565
-        Command(0x3A);
-        Data(0x55);
+    // Inversion ON
+    Command(0x21);
 
-        // Memory access control
-        Command(0x36);
-        Data(0x00);
+    // 16 Bit RGB565
+    Command(0x3A);
+    Data(0x55);
 
-        // Normal display mode
-        Command(0x13);
+    // Memory access control
+    Command(0x36);
+    Data(0x00);
 
-        hardware_->DelayMs(10);
+    // Normal display mode
+    Command(0x13);
 
-        // Display ON
-        Command(0x29);
-        hardware_->DelayMs(100);
-    }
+    hardware_->DelayMs(10);
+
+    // Display-RAM schwarz füllen,
+    // solange das Backlight noch aus ist
+    FillBlack();
+
+    // Display ON
+    Command(0x29);
+    hardware_->DelayMs(50);
+
+    // Erst jetzt sichtbar machen
+    bl_.Write(1);
+}
 
     void DrawLine(int x0, int y0, int x1,int y1, uint16_t color)
     {
@@ -242,18 +251,24 @@ class ST7789Display
         const int availableWidth =
             width - ((total - 1) * gap);
 
-        const int segmentWidth =
-            availableWidth / total;
-
         for(int i = 0; i < total; ++i)
         {
+            const int start =
+                (i * availableWidth) / total;
+
+            const int end =
+                ((i + 1) * availableWidth) / total;
+
+            const int segmentWidth =
+                end - start;
+
             const int segmentX =
-                x + i * (segmentWidth + gap);
+                x + start + i * gap;
 
             const uint16_t color =
                 (i < current)
-                    ? 0xFFFF     // weiß = captured
-                    : 0x2104;    // dunkelgrau = noch leer
+                    ? 0xFFFF
+                    : 0x2104;
 
             FillRect(
                 segmentX,
@@ -287,26 +302,27 @@ class ST7789Display
     const int availableWidth =
         width - ((total - 1) * gap);
 
-    const int segmentWidth =
-        availableWidth / total;
-
     for(int i = 0; i < total; ++i)
     {
-        const int segmentX =
-            x + i * (segmentWidth + gap);
+        const int start =
+            (i * availableWidth) / total;
 
-        uint16_t color = 0x2104; // dunkelgrau
+        const int end =
+            ((i + 1) * availableWidth) / total;
+
+        const int segmentWidth =
+            end - start;
+
+        const int segmentX =
+            x + start + i * gap;
+
+        uint16_t color = 0x2104;
 
         if(i == current - 1)
         {
-            if(mutated)
-            {
-                color = 0xFD20;  // orange
-            }
-            else
-            {
-                color = 0xFFFF;  // weiß
-            }
+            color = mutated
+                ? 0xFD20
+                : 0xFFFF;
         }
 
         FillRect(
@@ -602,6 +618,22 @@ class ST7789Display
                 glyph[4] = 0x3F;
                 break;
 
+            case 'X':
+                glyph[0] = 0x63;
+                glyph[1] = 0x14;
+                glyph[2] = 0x08;
+                glyph[3] = 0x14;
+                glyph[4] = 0x63;
+                break;
+
+            case '/':
+                glyph[0] = 0x20;
+                glyph[1] = 0x10;
+                glyph[2] = 0x08;
+                glyph[3] = 0x04;
+                glyph[4] = 0x02;
+                break;
+
             default:
                 return;
         }
@@ -849,6 +881,13 @@ class ST7789Display
             glyph[4] = 0x1F;
             break;
 
+        case 'X':
+            glyph[0] = 0x63;
+            glyph[1] = 0x14;
+            glyph[2] = 0x08;
+            glyph[3] = 0x14;
+            glyph[4] = 0x63;
+            break;
 
         case 'Z':
             glyph[0] = 0x61;

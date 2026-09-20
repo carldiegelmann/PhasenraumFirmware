@@ -26,19 +26,30 @@ int main(void)
     chaos.SetChaos(0.65);
 
     // Attraktor erst einschwingen lassen
-    for (int i = 0; i < 20000; ++i)
+    for(int i = 0; i < 20000; ++i)
         chaos.Tick();
 
-    display.FillBlack();
+    // ------------------------------------------------------------
+    // BOOT SPLASH
+    // ------------------------------------------------------------
 
     display.DrawTextScaled(
-    54,
-    4,
-    "PHASENRAUM",
-    0xFFFF,
-    2);
+        30,
+        125,
+        "PHASENRAUM",
+        0xFFFF,
+        3);
 
-    //display.DrawVersion(200,4,CONTROLLED_CHAOS_VERSION,0xFFFF);
+    display.DrawVersion(
+        96,
+        160,
+        CONTROLLED_CHAOS_VERSION,
+        0x7BEF);
+
+    hardware.DelayMs(2000);
+
+    // Splash löschen und Betriebsansicht vorbereiten
+    display.FillBlack();
 
     static constexpr int TrailLength = 80;
 
@@ -74,7 +85,9 @@ int main(void)
     console.Init(
         &hardware,
         &chaos,
-        &patternEngine);
+        &patternEngine,
+        &clockEngine
+    );
 
     hardware.PrintLine("Controlled Chaos online");
 
@@ -100,6 +113,8 @@ int main(void)
     constexpr uint16_t FrozenColor = 0x7DFF;
     uint32_t lastClockTime = System::GetNow();
     int lastDisplayedBpm = -1;
+    double lastDisplayedRate = -1.0;
+
     while (1)
     {
         console.Process();
@@ -132,6 +147,46 @@ int main(void)
                 0xFFFF);
 
             lastDisplayedBpm = currentBpm;
+        }
+
+        const double currentRate = clockEngine.GetRate();
+
+        if(currentRate != lastDisplayedRate)
+        {
+            char rateText[8];
+
+            if(currentRate == 0.5)
+            {
+                snprintf(
+                    rateText,
+                    sizeof(rateText),
+                    "/2");
+            }
+            else
+            {
+                snprintf(
+                    rateText,
+                    sizeof(rateText),
+                    "X%d",
+                    static_cast<int>(currentRate));
+            }
+
+            // Bereich unter der BPM-Anzeige löschen
+            display.FillRect(
+                214,
+                15,
+                26,
+                9,
+                0x0000);
+
+            // Rechtsbündig unter BPM
+            display.DrawText(
+                228,
+                16,
+                rateText,
+                0xFFFF);
+
+            lastDisplayedRate = currentRate;
         }
 
         const bool frozen = console.IsFrozen();
@@ -469,9 +524,9 @@ int main(void)
                     length);
 
                 display.DrawStepProgress(
-                    20,
+                    4,
                     291,
-                    200,
+                    232,
                     5,
                     captured,
                     length);
@@ -485,9 +540,9 @@ int main(void)
                     patternEngine.GetLength();
 
                 display.DrawLoopPosition(
-                    20,
+                    4,
                     291,
-                    200,
+                    232,
                     5,
                     currentStep,
                     length,
