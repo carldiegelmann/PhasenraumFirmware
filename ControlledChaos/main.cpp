@@ -101,9 +101,8 @@ int main(void)
     static constexpr float TwoPi =
         6.283185307179586f;
 
-    // Eine volle Hauptrotation in 45 Sekunden
-    static constexpr float RotationPeriodMs =
-        45000.0f;
+    // Eine volle Hauptrotation in 60 Sekunden
+    static constexpr float RotationPeriodMs = 60000.0f;
 
     // ------------------------------------------------------------
     // LOG
@@ -712,10 +711,10 @@ int main(void)
                             if(previousMarkerValid[i])
                             {
                                 display.FillRect(
-                                    previousMarkerX[i],
-                                    previousMarkerY[i],
-                                    2,
-                                    2,
+                                    previousMarkerX[i]-1,
+                                    previousMarkerY[i]-1,
+                                    3,
+                                    3,
                                     0x0000);
                             }
 
@@ -734,19 +733,19 @@ int main(void)
 
                         const bool onScreen =
                             markerX >= 1 &&
-                            markerX < 238 &&
+                            markerX < 239 &&
                             markerY >= 26 &&
-                            markerY < 283;
+                            markerY < 284;
 
                         if(!onScreen)
                         {
                             if(previousMarkerValid[i])
                             {
                                 display.FillRect(
-                                    previousMarkerX[i],
-                                    previousMarkerY[i],
-                                    2,
-                                    2,
+                                    previousMarkerX[i]-1,
+                                    previousMarkerY[i]-1,
+                                    3,
+                                    3,
                                     0x0000);
                             }
 
@@ -759,10 +758,10 @@ int main(void)
                             previousMarkerY[i] != markerY))
                         {
                             display.FillRect(
-                                previousMarkerX[i],
-                                previousMarkerY[i],
-                                2,
-                                2,
+                                previousMarkerX[i]-1,
+                                previousMarkerY[i]-1,
+                                3,
+                                3,
                                 0x0000);
                         }
 
@@ -795,14 +794,14 @@ int main(void)
 
                     const uint16_t color =
                         i == activeStep
-                            ? 0x7DFF   // aktiver Step: hellblau
+                            ? 0xF800   // rot: aktuell gespielter Step
                             : 0xFFE0;  // Capture-Step: gelb
 
                     display.FillRect(
-                        previousMarkerX[i],
-                        previousMarkerY[i],
-                        2,
-                        2,
+                        previousMarkerX[i]-1,
+                        previousMarkerY[i]-1,
+                        3,
+                        3,
                         color);
                 }
             }
