@@ -11,38 +11,88 @@ class ST7789Display
 {
     hardware_ = hardware;
 
-    // Steuerpins
+    // ------------------------------------------------------------
+    // CONTROL PINS
+    // ------------------------------------------------------------
+
     dc_.Init(seed::D5, GPIO::Mode::OUTPUT);
     rst_.Init(seed::D6, GPIO::Mode::OUTPUT);
     cs_.Init(seed::D7, GPIO::Mode::OUTPUT);
-    bl_.Init(seed::D4, GPIO::Mode::OUTPUT);
-
-    // Backlight während der Initialisierung aus
-    bl_.Write(0);
 
     cs_.Write(1);
     dc_.Write(1);
     rst_.Write(1);
 
-    // SPI1
-    SpiHandle::Config spiConfig;
-    spiConfig.periph = SpiHandle::Config::Peripheral::SPI_1;
-    spiConfig.mode = SpiHandle::Config::Mode::MASTER;
-    spiConfig.direction = SpiHandle::Config::Direction::TWO_LINES_TX_ONLY;
-    spiConfig.datasize = 8;
-    spiConfig.clock_polarity = SpiHandle::Config::ClockPolarity::LOW;
-    spiConfig.clock_phase = SpiHandle::Config::ClockPhase::ONE_EDGE;
-    spiConfig.nss = SpiHandle::Config::NSS::SOFT;
-    spiConfig.baud_prescaler = SpiHandle::Config::BaudPrescaler::PS_16;
+    // ------------------------------------------------------------
+    // BACKLIGHT PWM
+    //
+    // Daisy D4 = TIM3 Channel 3
+    // ------------------------------------------------------------
 
-    spiConfig.pin_config.sclk = seed::D8;
-    spiConfig.pin_config.mosi = seed::D10;
-    spiConfig.pin_config.miso = Pin();
-    spiConfig.pin_config.nss  = Pin();
+    PWMHandle::Config pwmConfig(
+        PWMHandle::Config::Peripheral::TIM_3,
+        0,
+        9999);
+
+    backlightPwm_.Init(pwmConfig);
+
+    PWMHandle::Channel::Config backlightConfig(
+        seed::D4,
+        PWMHandle::Channel::Config::Polarity::HIGH);
+
+    backlightPwm_.Channel3().Init(
+        backlightConfig);
+
+    // Während der kompletten Display-Initialisierung dunkel
+    backlightPwm_.Channel3().Set(0.0f);
+
+    // ------------------------------------------------------------
+    // SPI1
+    // ------------------------------------------------------------
+
+    SpiHandle::Config spiConfig;
+
+    spiConfig.periph =
+        SpiHandle::Config::Peripheral::SPI_1;
+
+    spiConfig.mode =
+        SpiHandle::Config::Mode::MASTER;
+
+    spiConfig.direction =
+        SpiHandle::Config::Direction::TWO_LINES_TX_ONLY;
+
+    spiConfig.datasize = 8;
+
+    spiConfig.clock_polarity =
+        SpiHandle::Config::ClockPolarity::LOW;
+
+    spiConfig.clock_phase =
+        SpiHandle::Config::ClockPhase::ONE_EDGE;
+
+    spiConfig.nss =
+        SpiHandle::Config::NSS::SOFT;
+
+    spiConfig.baud_prescaler =
+        SpiHandle::Config::BaudPrescaler::PS_16;
+
+    spiConfig.pin_config.sclk =
+        seed::D8;
+
+    spiConfig.pin_config.mosi =
+        seed::D10;
+
+    spiConfig.pin_config.miso =
+        Pin();
+
+    spiConfig.pin_config.nss =
+        Pin();
 
     spi_.Init(spiConfig);
 
-    // Hardware Reset
+    // ------------------------------------------------------------
+    // HARDWARE RESET
+    // ------------------------------------------------------------
+
     hardware_->DelayMs(20);
 
     rst_.Write(0);
@@ -50,6 +100,10 @@ class ST7789Display
 
     rst_.Write(1);
     hardware_->DelayMs(150);
+
+    // ------------------------------------------------------------
+    // ST7789 INITIALISIERUNG
+    // ------------------------------------------------------------
 
     // Software reset
     Command(0x01);
@@ -62,30 +116,37 @@ class ST7789Display
     // Inversion ON
     Command(0x21);
 
-    // 16 Bit RGB565
+    // RGB565
     Command(0x3A);
     Data(0x55);
 
-    // Memory access control
+    // Memory Access Control
     Command(0x36);
     Data(0x00);
 
     // Normal display mode
     Command(0x13);
-
     hardware_->DelayMs(10);
 
-    // Display-RAM schwarz füllen,
-    // solange das Backlight noch aus ist
+    // Display ON
+    // Backlight bleibt trotzdem noch AUS.
+    Command(0x29);
+    hardware_->DelayMs(20);
+
+    // Display-RAM unsichtbar schwarz löschen
     FillBlack();
 
-    // Display ON
-    Command(0x29);
-    hardware_->DelayMs(50);
+    // ------------------------------------------------------------
+    // BACKLIGHT EIN
+    // ------------------------------------------------------------
 
-    // Erst jetzt sichtbar machen
-    bl_.Write(1);
+    SetBrightness(0.65f);
 }
+
+    void SetBrightness(float brightness)
+    {
+        backlightPwm_.Channel3().Set(brightness);
+    }
 
     void DrawLine(int x0, int y0, int x1,int y1, uint16_t color)
     {
@@ -489,10 +550,11 @@ class ST7789Display
 
     SpiHandle spi_;
 
-    GPIO dc_;
-    GPIO rst_;
-    GPIO cs_;
-    GPIO bl_;
+        GPIO dc_;
+        GPIO rst_;
+        GPIO cs_;
+
+    PWMHandle backlightPwm_;
 
     void Command(uint8_t command)
     {

@@ -25,6 +25,7 @@ int main(void)
 
     ST7789Display display;
     display.Init(&hardware);
+    display.SetBrightness(0.10f);
 
     // ------------------------------------------------------------
     // BOOT SPLASH
@@ -101,8 +102,8 @@ int main(void)
     static constexpr float TwoPi =
         6.283185307179586f;
 
-    // Eine volle Hauptrotation in 60 Sekunden
-    static constexpr float RotationPeriodMs = 60000.0f;
+    // Eine volle Hauptrotation in 20 Sekunden
+    static constexpr float RotationPeriodMs = 15000.0f;
 
     // ------------------------------------------------------------
     // LOG
@@ -189,6 +190,8 @@ int main(void)
     uint32_t lastRotationTime =
         System::GetNow();
 
+    static constexpr int DisplayGridSize = 2;
+
     // ------------------------------------------------------------
     // 3D -> 2D PROJECTION
     // ------------------------------------------------------------
@@ -233,12 +236,24 @@ int main(void)
         screenX =
             120 +
             static_cast<int>(
-                x1 * 82.0f);
+            x1 * 115.0f);
 
         screenY =
             155 -
             static_cast<int>(
                 y1 * 72.0f);
+
+        // --------------------------------------------------------
+        // Künstlich gröbere Display-Auflösung
+        // --------------------------------------------------------
+
+        screenX =
+            (screenX / DisplayGridSize)
+            * DisplayGridSize;
+
+        screenY =
+            (screenY / DisplayGridSize)
+            * DisplayGridSize;
     };
 
     // ------------------------------------------------------------
@@ -677,7 +692,9 @@ int main(void)
                 }
 
                 const int markerCount =
-                    patternEngine.GetCapturedSteps();
+    patternEngine.GetMode() == PatternMode::Live
+        ? 0
+        : patternEngine.GetCapturedSteps();
 
                 const int activeStep =
                     patternEngine.GetMode()
@@ -912,10 +929,21 @@ int main(void)
 
             else
             {
-                snprintf(
-                    status,
-                    sizeof(status),
-                    "LIVE");
+                // Step-Bar nur beim Wechsel nach LIVE löschen
+    if(strcmp(lastStatus, "LIVE") != 0)
+    {
+        display.FillRect(
+            4,
+            291,
+            232,
+            5,
+            0x0000);
+    }
+
+    snprintf(
+        status,
+        sizeof(status),
+        "LIVE");
             }
 
             // ----------------------------------------------------
