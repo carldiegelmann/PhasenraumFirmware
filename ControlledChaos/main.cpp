@@ -52,6 +52,7 @@ int main(void)
     display.FillBlack();
 
     static constexpr int TrailLength = 80;
+    static constexpr uint16_t HistoryColor = 0x1082;
 
     int trailX[TrailLength];
     int trailY[TrailLength];
@@ -287,7 +288,7 @@ int main(void)
                             trailY[0],
                             trailX[1],
                             trailY[1],
-                            0x0000);
+                            HistoryColor);
 
                         for(int i = 1; i < TrailLength; ++i)
                         {
