@@ -72,8 +72,7 @@ class ST7789Display
     spiConfig.nss =
         SpiHandle::Config::NSS::SOFT;
 
-    spiConfig.baud_prescaler =
-        SpiHandle::Config::BaudPrescaler::PS_16;
+    spiConfig.baud_prescaler = SpiHandle::Config::BaudPrescaler::PS_8;
 
     spiConfig.pin_config.sclk =
         seed::D8;
@@ -215,25 +214,101 @@ class ST7789Display
         cs_.Write(1);
     }
 
-    void DrawPixel(uint16_t x, uint16_t y, uint16_t color)
+    void DrawPixel(
+    uint16_t x,
+    uint16_t y,
+    uint16_t color)
     {
         if(x >= 240 || y >= 320)
             return;
 
-        SetAddressWindow(x, y, x, y);
+        uint8_t command;
+        uint8_t data[4];
 
-        Command(0x2C);
+        // Eine einzige CS-Transaktion für den kompletten Pixel
+        cs_.Write(0);
+
+        // ------------------------------------------------------------
+        // COLUMN ADDRESS
+        // ------------------------------------------------------------
+
+        command = 0x2A;
+
+        dc_.Write(0);
+        spi_.BlockingTransmit(
+            &command,
+            1);
+
+        data[0] =
+            static_cast<uint8_t>(x >> 8);
+
+        data[1] =
+            static_cast<uint8_t>(x & 0xFF);
+
+        // Start und Ende sind beim Einzelpixel identisch
+        data[2] = data[0];
+        data[3] = data[1];
+
+        dc_.Write(1);
+
+        spi_.BlockingTransmit(
+            data,
+            4);
+
+        // ------------------------------------------------------------
+        // ROW ADDRESS
+        // ------------------------------------------------------------
+
+        command = 0x2B;
+
+        dc_.Write(0);
+
+        spi_.BlockingTransmit(
+            &command,
+            1);
+
+        data[0] = static_cast<uint8_t>(y >> 8);
+
+        data[1] = static_cast<uint8_t>(y & 0xFF);
+
+        data[2] = data[0];
+        data[3] = data[1];
+
+        dc_.Write(1);
+
+        spi_.BlockingTransmit(
+            data,
+            4);
+
+        // ------------------------------------------------------------
+        // MEMORY WRITE
+        // ------------------------------------------------------------
+
+        command = 0x2C;
+
+        dc_.Write(0);
+
+        spi_.BlockingTransmit(
+            &command,
+            1);
 
         uint8_t pixel[2];
 
-        pixel[0] = static_cast<uint8_t>(color >> 8);
-        pixel[1] = static_cast<uint8_t>(color & 0xFF);
+        pixel[0] =
+            static_cast<uint8_t>(
+                color >> 8);
 
-        cs_.Write(0);
+        pixel[1] =
+            static_cast<uint8_t>(
+                color & 0xFF);
+
         dc_.Write(1);
 
-        spi_.BlockingTransmit(pixel, 2);
+        spi_.BlockingTransmit(
+            pixel,
+            2);
 
+        // komplette Transaktion fertig
         cs_.Write(1);
     }
 
@@ -545,6 +620,209 @@ class ST7789Display
         }
     }
 
+    void DrawHorizontalSpan(
+    int x,
+    int y,
+    const uint16_t* colors,
+    int count)
+    {
+        if(colors == nullptr || count <= 0)
+            return;
+
+        if(y < 0 || y >= 320)
+            return;
+
+        if(x < 0)
+        {
+            const int skip = -x;
+
+            if(skip >= count)
+                return;
+
+            colors += skip;
+            count -= skip;
+            x = 0;
+        }
+
+        if(x >= 240)
+            return;
+
+        if(x + count > 240)
+            count = 240 - x;
+
+        // ------------------------------------------------------------
+        // Eine CS-Transaktion für den kompletten Span
+        // ------------------------------------------------------------
+
+        cs_.Write(0);
+
+        uint8_t command;
+        uint8_t address[4];
+
+        // X-Bereich
+        command = 0x2A;
+
+        dc_.Write(0);
+        spi_.BlockingTransmit(&command, 1);
+
+        const uint16_t x1 =
+            static_cast<uint16_t>(x + count - 1);
+
+        address[0] =
+            static_cast<uint8_t>(x >> 8);
+
+        address[1] =
+            static_cast<uint8_t>(x & 0xFF);
+
+        address[2] =
+            static_cast<uint8_t>(x1 >> 8);
+
+        address[3] =
+            static_cast<uint8_t>(x1 & 0xFF);
+
+        dc_.Write(1);
+        spi_.BlockingTransmit(address, 4);
+
+        // Y = genau eine Zeile
+        command = 0x2B;
+
+        dc_.Write(0);
+        spi_.BlockingTransmit(&command, 1);
+
+        address[0] =
+            static_cast<uint8_t>(y >> 8);
+
+        address[1] =
+            static_cast<uint8_t>(y & 0xFF);
+
+        address[2] = address[0];
+        address[3] = address[1];
+
+        dc_.Write(1);
+        spi_.BlockingTransmit(address, 4);
+
+        // RAM Write
+        command = 0x2C;
+
+        dc_.Write(0);
+        spi_.BlockingTransmit(&command, 1);
+
+        // ------------------------------------------------------------
+        // Farben in kleine RGB565-Blöcke packen
+        // ------------------------------------------------------------
+
+        dc_.Write(1);
+
+        uint8_t buffer[128];
+
+        int remaining = count;
+        int sourceIndex = 0;
+
+        while(remaining > 0)
+        {
+            const int pixelsThisTime =
+                remaining > 64
+                    ? 64
+                    : remaining;
+
+            for(int i = 0;
+                i < pixelsThisTime;
+                ++i)
+            {
+                const uint16_t color =
+                    colors[sourceIndex + i];
+
+                buffer[i * 2] =
+                    static_cast<uint8_t>(
+                        color >> 8);
+
+                buffer[i * 2 + 1] =
+                    static_cast<uint8_t>(
+                        color & 0xFF);
+            }
+
+            spi_.BlockingTransmit(
+                buffer,
+                pixelsThisTime * 2);
+
+            sourceIndex +=
+                pixelsThisTime;
+
+            remaining -=
+                pixelsThisTime;
+        }
+
+        cs_.Write(1);
+    }
+
+    void ClearLineBuffer(uint16_t color = 0x0000)
+{
+    for(int x = 0; x < 240; ++x)
+    {
+        lineBuffer_[x] = color;
+    }
+}
+
+void SetLinePixel(
+    int x,
+    uint16_t color)
+{
+    if(x < 0 || x >= 240)
+        return;
+
+    lineBuffer_[x] = color;
+}
+
+void FillLineSpan(
+    int x,
+    int width,
+    uint16_t color)
+{
+    if(width <= 0)
+        return;
+
+    int x0 = x;
+    int x1 = x + width - 1;
+
+    if(x0 < 0)
+        x0 = 0;
+
+    if(x1 >= 240)
+        x1 = 239;
+
+    if(x0 > x1)
+        return;
+
+    for(int px = x0; px <= x1; ++px)
+    {
+        lineBuffer_[px] = color;
+    }
+}
+
+void FlushLineBuffer(
+    int y,
+    int x0 = 0,
+    int x1 = 239)
+{
+    if(y < 0 || y >= 320)
+        return;
+
+    if(x0 < 0)
+        x0 = 0;
+
+    if(x1 >= 240)
+        x1 = 239;
+
+    if(x0 > x1)
+        return;
+
+    DrawHorizontalSpan(
+        x0,
+        y,
+        &lineBuffer_[x0],
+        x1 - x0 + 1);
+}
+
   private:
     DaisySeed* hardware_ = nullptr;
 
@@ -553,6 +831,7 @@ class ST7789Display
         GPIO dc_;
         GPIO rst_;
         GPIO cs_;
+        uint16_t lineBuffer_[240] = {};
 
     PWMHandle backlightPwm_;
 
@@ -577,25 +856,57 @@ class ST7789Display
     }
 
     void SetAddressWindow(
-        uint16_t x0,
-        uint16_t y0,
-        uint16_t x1,
-        uint16_t y1)
+    uint16_t x0,
+    uint16_t y0,
+    uint16_t x1,
+    uint16_t y1)
+{
+    // ------------------------------------------------------------
+    // COLUMN ADDRESS
+    // ------------------------------------------------------------
+
+    Command(0x2A);
+
+    uint8_t columnData[4] =
     {
-        Command(0x2A);
+        static_cast<uint8_t>(x0 >> 8),
+        static_cast<uint8_t>(x0 & 0xFF),
+        static_cast<uint8_t>(x1 >> 8),
+        static_cast<uint8_t>(x1 & 0xFF)
+    };
 
-        Data(x0 >> 8);
-        Data(x0 & 0xFF);
-        Data(x1 >> 8);
-        Data(x1 & 0xFF);
+    cs_.Write(0);
+    dc_.Write(1);
 
-        Command(0x2B);
+    spi_.BlockingTransmit(
+        columnData,
+        sizeof(columnData));
 
-        Data(y0 >> 8);
-        Data(y0 & 0xFF);
-        Data(y1 >> 8);
-        Data(y1 & 0xFF);
-    }
+    cs_.Write(1);
+
+    // ------------------------------------------------------------
+    // ROW ADDRESS
+    // ------------------------------------------------------------
+
+    Command(0x2B);
+
+    uint8_t rowData[4] =
+    {
+        static_cast<uint8_t>(y0 >> 8),
+        static_cast<uint8_t>(y0 & 0xFF),
+        static_cast<uint8_t>(y1 >> 8),
+        static_cast<uint8_t>(y1 & 0xFF)
+    };
+
+    cs_.Write(0);
+    dc_.Write(1);
+
+    spi_.BlockingTransmit(
+        rowData,
+        sizeof(rowData));
+
+    cs_.Write(1);
+}
 
         void DrawCharScaled(
         int x,

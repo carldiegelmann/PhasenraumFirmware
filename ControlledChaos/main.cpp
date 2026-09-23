@@ -82,6 +82,9 @@ int main(void)
     int trailX[TrailLength] = {};
     int trailY[TrailLength] = {};
 
+    int dirtyMinX[320] = {};
+    int dirtyMaxX[320] = {};
+
     int trailCount = 0;
     int displayDivider = 0;
     int markerDisplayDivider = 0;
@@ -290,6 +293,106 @@ int main(void)
             y);
 
         return y;
+    };
+
+    // ------------------------------------------------------------
+    // ORIENTATION CUBE
+    // ------------------------------------------------------------
+
+    static constexpr float cubeVertices[8][3] =
+    {
+        {-1.0f, -1.0f, -1.0f},
+        { 1.0f, -1.0f, -1.0f},
+        { 1.0f,  1.0f, -1.0f},
+        {-1.0f,  1.0f, -1.0f},
+
+        {-1.0f, -1.0f,  1.0f},
+        { 1.0f, -1.0f,  1.0f},
+        { 1.0f,  1.0f,  1.0f},
+        {-1.0f,  1.0f,  1.0f}
+    };
+
+    static constexpr int cubeEdges[12][2] =
+    {
+        {0, 1},
+        {1, 2},
+        {2, 3},
+        {3, 0},
+
+        {4, 5},
+        {5, 6},
+        {6, 7},
+        {7, 4},
+
+        {0, 4},
+        {1, 5},
+        {2, 6},
+        {3, 7}
+    };
+
+    int cubeX[8] = {};
+    int cubeY[8] = {};
+
+    auto DrawLineToBuffer =
+        [&](int targetY,
+            int x0,
+            int y0,
+            int x1,
+            int y1,
+            uint16_t color)
+    {
+        const int dx =
+            x1 > x0
+                ? x1 - x0
+                : x0 - x1;
+
+        const int sx =
+            x0 < x1
+                ? 1
+                : -1;
+
+        const int dy =
+            -(y1 > y0
+                ? y1 - y0
+                : y0 - y1);
+
+        const int sy =
+            y0 < y1
+                ? 1
+                : -1;
+
+        int err = dx + dy;
+
+        while(true)
+        {
+            if(y0 == targetY)
+            {
+                display.SetLinePixel(
+                    x0,
+                    color);
+            }
+
+            if(x0 == x1 &&
+            y0 == y1)
+            {
+                break;
+            }
+
+            const int e2 =
+                2 * err;
+
+            if(e2 >= dy)
+            {
+                err += dy;
+                x0 += sx;
+            }
+
+            if(e2 <= dx)
+            {
+                err += dx;
+                y0 += sy;
+            }
+        }
     };
 
     // ============================================================
@@ -507,21 +610,37 @@ int main(void)
                 displayDivider = 0;
 
                 // ------------------------------------------------
-                // ALTE 3D-PUNKTE LÖSCHEN
+                // DIRTY-ZEILEN VORBEREITEN
+                // ------------------------------------------------
+
+                for(int y = 25; y < 285; ++y)
+                {
+                    dirtyMinX[y] = 240;
+                    dirtyMaxX[y] = -1;
+                }
+
+                // ------------------------------------------------
+                // ALTE 3D-PUNKTE ALS DIRTY MARKIEREN
                 // ------------------------------------------------
 
                 for(int i = 0; i < trailCount; ++i)
                 {
-                    if(trailX[i] >= 0 &&
-                    trailX[i] < 240 &&
-                    trailY[i] >= 25 &&
-                    trailY[i] < 285)
+                    const int x = trailX[i];
+                    const int y = trailY[i];
+
+                    if(x < 0 ||
+                    x >= 240 ||
+                    y < 25 ||
+                    y >= 285)
                     {
-                        display.DrawPixel(
-                            trailX[i],
-                            trailY[i],
-                            0x0000);
+                        continue;
                     }
+
+                    if(x < dirtyMinX[y])
+                        dirtyMinX[y] = x;
+
+                    if(x > dirtyMaxX[y])
+                        dirtyMaxX[y] = x;
                 }
 
                 // ------------------------------------------------
@@ -580,19 +699,20 @@ int main(void)
                 lastRotationTime =
                     rotationNow;
 
-                rotationAngle +=
-                    TwoPi *
-                    static_cast<float>(rotationElapsed)
-                    /
-                    RotationPeriodMs;
+                if(console.IsRotationEnabled())
+                {
+                    rotationAngle +=
+                        TwoPi *
+                        static_cast<float>(rotationElapsed)
+                        /
+                        RotationPeriodMs;
 
-                // Zweite Achse dreht halb so schnell,
-                // aber hat ihren EIGENEN kontinuierlichen Winkel.
-                pitchAngle +=
-                    TwoPi *
-                    static_cast<float>(rotationElapsed)
-                    /
-                    (RotationPeriodMs * 2.0f);
+                    pitchAngle +=
+                        TwoPi *
+                        static_cast<float>(rotationElapsed)
+                        /
+                        (RotationPeriodMs * 2.0f);
+                }
 
                 while(rotationAngle >= TwoPi)
                 {
@@ -616,6 +736,95 @@ int main(void)
                 pitchSin =
                     std::sin(pitchAngle);
 
+
+                // ------------------------------------------------
+                // KLEINEN ORIENTATION CUBE PROJIZIEREN
+                // ------------------------------------------------
+
+                static constexpr float CubeScale =
+                    6.5f;
+
+                static constexpr int CubeCenterX =
+                    18;
+
+                static constexpr int CubeCenterY =
+                    13;
+
+                for(int i = 0; i < 8; ++i)
+                {
+                    const float a =
+                        cubeVertices[i][0];
+
+                    const float b =
+                        cubeVertices[i][1];
+
+                    const float c =
+                        cubeVertices[i][2];
+
+                    // Gleiche Rotation wie beim Phasenraum
+                    const float x1 =
+                        a * rotationCos +
+                        b * rotationSin;
+
+                    const float z1 =
+                    -a * rotationSin +
+                        b * rotationCos;
+
+                    const float y1 =
+                        c * pitchCos -
+                        z1 * pitchSin;
+
+                    cubeX[i] =
+                        CubeCenterX +
+                        static_cast<int>(
+                            x1 * CubeScale);
+
+                    cubeY[i] =
+                        CubeCenterY -
+                        static_cast<int>(
+                            y1 * CubeScale);
+                }
+
+                // ------------------------------------------------
+                // ORIENTATION CUBE RENDERN
+                // ------------------------------------------------
+
+                constexpr uint16_t CubeColor =
+                    0x39E7;
+
+                // Der Würfel bleibt vollständig oberhalb des
+                // eigentlichen Phasenraum-Bereichs ab Y=25.
+
+                for(int y = 1; y <= 24; ++y)
+                {
+                    display.ClearLineBuffer(
+                        0x0000);
+
+                    for(int edge = 0;
+                        edge < 12;
+                        ++edge)
+                    {
+                        const int a =
+                            cubeEdges[edge][0];
+
+                        const int b =
+                            cubeEdges[edge][1];
+
+                        DrawLineToBuffer(
+                            y,
+                            cubeX[a],
+                            cubeY[a],
+                            cubeX[b],
+                            cubeY[b],
+                            CubeColor);
+                    }
+
+                    display.FlushLineBuffer(
+                        y,
+                        4,
+                        32);
+                }
+
                 // ------------------------------------------------
                 // ALLE 3D-PUNKTE NEU PROJIZIEREN
                 // ------------------------------------------------
@@ -633,49 +842,95 @@ int main(void)
                 }
 
                 // ------------------------------------------------
-                // TRAIL NEU ZEICHNEN
+                // NEUE 3D-PUNKTE EBENFALLS ALS DIRTY MARKIEREN
                 // ------------------------------------------------
 
                 for(int i = 0; i < trailCount; ++i)
-{
-    if(trailX[i] < 0 ||
-       trailX[i] >= 240 ||
-       trailY[i] < 25 ||
-       trailY[i] >= 285)
-    {
-        continue;
-    }
+                {
+                    const int x = trailX[i];
+                    const int y = trailY[i];
 
-    const float age =
-        trailCount > 1
-            ? static_cast<float>(i)
-                / static_cast<float>(trailCount - 1)
-            : 1.0f;
+                    if(x < 0 ||
+                    x >= 240 ||
+                    y < 25 ||
+                    y >= 285)
+                    {
+                        continue;
+                    }
 
-    uint16_t color;
+                    if(x < dirtyMinX[y])
+                        dirtyMinX[y] = x;
 
-    if(age < 0.25f)
-    {
-        color = 0x2104;   // sehr dunkel
-    }
-    else if(age < 0.50f)
-    {
-        color = 0x39E7;
-    }
-    else if(age < 0.75f)
-    {
-        color = 0x7BEF;
-    }
-    else
-    {
-        color = 0xFFFF;   // neueste Punkte weiß
-    }
+                    if(x > dirtyMaxX[y])
+                        dirtyMaxX[y] = x;
+                }
 
-    display.DrawPixel(
-        trailX[i],
-        trailY[i],
-        color);
-}
+                // ------------------------------------------------
+                // TRAIL ZEILENWEISE NEU ZEICHNEN
+                // ------------------------------------------------
+
+                for(int y = 25; y < 285; ++y)
+                {
+                    const int x0 = dirtyMinX[y];
+                    const int x1 = dirtyMaxX[y];
+
+                    // In dieser Zeile hat sich nichts geändert.
+                    if(x1 < x0)
+                        continue;
+
+                    // Zeilenbuffer zunächst schwarz.
+                    display.ClearLineBuffer(0x0000);
+
+                    // Alle aktuell sichtbaren Trailpunkte dieser
+                    // Bildschirmzeile in den RAM-Buffer zeichnen.
+                    for(int i = 0; i < trailCount; ++i)
+                    {
+                        if(trailY[i] != y)
+                            continue;
+
+                        const int x = trailX[i];
+
+                        if(x < 0 || x >= 240)
+                            continue;
+
+                        const float age =
+                            trailCount > 1
+                                ? static_cast<float>(i)
+                                    / static_cast<float>(
+                                        trailCount - 1)
+                                : 1.0f;
+
+                        uint16_t color;
+
+                        if(age < 0.25f)
+                        {
+                            color = 0x2104;
+                        }
+                        else if(age < 0.50f)
+                        {
+                            color = 0x39E7;
+                        }
+                        else if(age < 0.75f)
+                        {
+                            color = 0x7BEF;
+                        }
+                        else
+                        {
+                            color = 0xFFFF;
+                        }
+
+                        display.SetLinePixel(
+                            x,
+                            color);
+                    }
+
+                    // Nur den tatsächlich veränderten Teil
+                    // dieser Zeile zum ST7789 schicken.
+                    display.FlushLineBuffer(
+                        y,
+                        x0,
+                        x1);
+                }
 
                 // =================================================
                 // PATTERN MARKER
@@ -691,10 +946,7 @@ int main(void)
                     markerDisplayDivider = 0;
                 }
 
-                const int markerCount =
-    patternEngine.GetMode() == PatternMode::Live
-        ? 0
-        : patternEngine.GetCapturedSteps();
+                const int markerCount = patternEngine.GetMode() == PatternMode::Live ? 0 : patternEngine.GetCapturedSteps();
 
                 const int activeStep =
                     patternEngine.GetMode()
