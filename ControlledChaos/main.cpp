@@ -12,12 +12,20 @@
 #include <cmath>
 
 using namespace daisy;
+using namespace daisy::seed;
 
 DaisySeed hardware;
 
 int main(void)
 {
     hardware.Init();
+
+
+    AdcChannelConfig adcConfig;
+    adcConfig.InitSingle(A0);
+
+    hardware.adc.Init(&adcConfig, 1);
+    hardware.adc.Start();
 
     // ------------------------------------------------------------
     // DISPLAY
@@ -300,17 +308,17 @@ int main(void)
     // ------------------------------------------------------------
 
     static constexpr float cubeVertices[8][3] =
-    {
-        {-1.0f, -1.0f, -1.0f},
-        { 1.0f, -1.0f, -1.0f},
-        { 1.0f,  1.0f, -1.0f},
-        {-1.0f,  1.0f, -1.0f},
+{
+    {-1.0f, -1.0f, -1.0f},
+    { 1.0f, -1.0f, -1.0f},
+    { 1.0f,  1.0f, -1.0f},
+    {-1.0f,  1.0f, -1.0f},
 
-        {-1.0f, -1.0f,  1.0f},
-        { 1.0f, -1.0f,  1.0f},
-        { 1.0f,  1.0f,  1.0f},
-        {-1.0f,  1.0f,  1.0f}
-    };
+    {-1.0f, -1.0f,  1.0f},
+    { 1.0f, -1.0f,  1.0f},
+    { 1.0f,  1.0f,  1.0f},
+    {-1.0f,  1.0f,  1.0f}
+};
 
     static constexpr int cubeEdges[12][2] =
     {
@@ -395,6 +403,8 @@ int main(void)
         }
     };
 
+    uint32_t lastPotPrint = System::GetNow();
+
     // ============================================================
     // MAIN LOOP
     // ============================================================
@@ -406,6 +416,40 @@ int main(void)
         // --------------------------------------------------------
 
         console.Process();
+
+
+        // --------------------------------------------------------
+        // POTI TEST
+        // --------------------------------------------------------
+
+        const float potValue = hardware.adc.GetFloat(0);
+
+        float chaosValue =
+            potValue / 0.979f;
+
+        if(chaosValue > 1.0f)
+            chaosValue = 1.0f;
+
+        if(chaosValue < 0.0f)
+            chaosValue = 0.0f;
+
+        chaos.SetChaos(chaosValue);
+
+        const uint32_t potNow =
+            System::GetNow();
+
+        if(potNow - lastPotPrint >= 100)
+        {
+            lastPotPrint = potNow;
+
+            const int potRaw =
+                static_cast<int>(
+                    potValue * 1000.0f);
+
+            hardware.PrintLine(
+                "POT: %d",
+                potRaw);
+        }
 
         // --------------------------------------------------------
         // BPM DISPLAY
@@ -699,20 +743,15 @@ int main(void)
                 lastRotationTime =
                     rotationNow;
 
-                if(console.IsRotationEnabled())
-                {
-                    rotationAngle +=
-                        TwoPi *
-                        static_cast<float>(rotationElapsed)
-                        /
-                        RotationPeriodMs;
+                rotationAngle +=
+                TwoPi *
+                static_cast<float>(rotationElapsed)
+                / RotationPeriodMs;
 
-                    pitchAngle +=
-                        TwoPi *
-                        static_cast<float>(rotationElapsed)
-                        /
-                        (RotationPeriodMs * 2.0f);
-                }
+                pitchAngle +=
+                TwoPi *
+                static_cast<float>(rotationElapsed)
+                / (RotationPeriodMs * 2.0f);
 
                 while(rotationAngle >= TwoPi)
                 {
@@ -741,14 +780,9 @@ int main(void)
                 // KLEINEN ORIENTATION CUBE PROJIZIEREN
                 // ------------------------------------------------
 
-                static constexpr float CubeScale =
-                    6.5f;
-
-                static constexpr int CubeCenterX =
-                    18;
-
-                static constexpr int CubeCenterY =
-                    13;
+                static constexpr int CubeCenterX = 27;
+                static constexpr int CubeCenterY = 27;
+                static constexpr float CubeScale = 13.0f;
 
                 for(int i = 0; i < 8; ++i)
                 {
@@ -789,13 +823,12 @@ int main(void)
                 // ORIENTATION CUBE RENDERN
                 // ------------------------------------------------
 
-                constexpr uint16_t CubeColor =
-                    0x39E7;
+                constexpr uint16_t CubeColor = 0x3FE2;
 
                 // Der Würfel bleibt vollständig oberhalb des
                 // eigentlichen Phasenraum-Bereichs ab Y=25.
 
-                for(int y = 1; y <= 24; ++y)
+                for(int y = 1; y <= 52; ++y)
                 {
                     display.ClearLineBuffer(
                         0x0000);
@@ -820,9 +853,9 @@ int main(void)
                     }
 
                     display.FlushLineBuffer(
-                        y,
-                        4,
-                        32);
+                    y,
+                    2,
+                    52);
                 }
 
                 // ------------------------------------------------
@@ -904,19 +937,19 @@ int main(void)
 
                         if(age < 0.25f)
                         {
-                            color = 0x2104;
+                            color = 0x0200; // sehr dunkles Grün
                         }
                         else if(age < 0.50f)
                         {
-                            color = 0x39E7;
+                            color = 0x03E0; // mittleres Grün
                         }
                         else if(age < 0.75f)
                         {
-                            color = 0x7BEF;
+                            color = 0x05E0; // helles Grün
                         }
                         else
                         {
-                            color = 0xFFFF;
+                            color = 0x07E0; // maximales RGB565-Grün
                         }
 
                         display.SetLinePixel(

@@ -120,7 +120,7 @@ class ChaosEngine
 
     static double ChaosToRho(double chaos)
     {
-        return 20.0 + chaos * 15.0;
+        return 0.5 + chaos * 39.5;
     }
 
     static double SpeedToMultiplier(double speed)
