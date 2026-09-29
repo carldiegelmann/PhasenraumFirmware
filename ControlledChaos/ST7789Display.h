@@ -919,12 +919,111 @@ void FlushLineBuffer(
 
         switch(c)
         {
+            case '0':
+                glyph[0] = 0x3E;
+                glyph[1] = 0x51;
+                glyph[2] = 0x49;
+                glyph[3] = 0x45;
+                glyph[4] = 0x3E;
+                break;
+
+            case '1':
+                glyph[0] = 0x00;
+                glyph[1] = 0x42;
+                glyph[2] = 0x7F;
+                glyph[3] = 0x40;
+                glyph[4] = 0x00;
+                break;
+
+            case '2':
+                glyph[0] = 0x42;
+                glyph[1] = 0x61;
+                glyph[2] = 0x51;
+                glyph[3] = 0x49;
+                glyph[4] = 0x46;
+                break;
+
+            case '3':
+                glyph[0] = 0x21;
+                glyph[1] = 0x41;
+                glyph[2] = 0x45;
+                glyph[3] = 0x4B;
+                glyph[4] = 0x31;
+                break;
+
+            case '4':
+                glyph[0] = 0x18;
+                glyph[1] = 0x14;
+                glyph[2] = 0x12;
+                glyph[3] = 0x7F;
+                glyph[4] = 0x10;
+                break;
+
+            case '5':
+                glyph[0] = 0x27;
+                glyph[1] = 0x45;
+                glyph[2] = 0x45;
+                glyph[3] = 0x45;
+                glyph[4] = 0x39;
+                break;
+
+            case '6':
+                glyph[0] = 0x3C;
+                glyph[1] = 0x4A;
+                glyph[2] = 0x49;
+                glyph[3] = 0x49;
+                glyph[4] = 0x30;
+                break;
+
+            case '7':
+                glyph[0] = 0x01;
+                glyph[1] = 0x71;
+                glyph[2] = 0x09;
+                glyph[3] = 0x05;
+                glyph[4] = 0x03;
+                break;
+
+            case '8':
+                glyph[0] = 0x36;
+                glyph[1] = 0x49;
+                glyph[2] = 0x49;
+                glyph[3] = 0x49;
+                glyph[4] = 0x36;
+                break;
+
+            case '9':
+                glyph[0] = 0x06;
+                glyph[1] = 0x49;
+                glyph[2] = 0x49;
+                glyph[3] = 0x29;
+                glyph[4] = 0x1E;
+                break;
+
+            case ' ':
+                return;
+
             case 'A':
                 glyph[0] = 0x7E;
                 glyph[1] = 0x11;
                 glyph[2] = 0x11;
                 glyph[3] = 0x11;
                 glyph[4] = 0x7E;
+                break;
+
+            case 'B':
+                glyph[0] = 0x7F;
+                glyph[1] = 0x49;
+                glyph[2] = 0x49;
+                glyph[3] = 0x49;
+                glyph[4] = 0x36;
+                break;
+
+            case 'C':
+                glyph[0] = 0x3E;
+                glyph[1] = 0x41;
+                glyph[2] = 0x41;
+                glyph[3] = 0x41;
+                glyph[4] = 0x22;
                 break;
 
             case 'E':
@@ -943,6 +1042,22 @@ void FlushLineBuffer(
                 glyph[4] = 0x7F;
                 break;
 
+            case 'I':
+                glyph[0] = 0x00;
+                glyph[1] = 0x41;
+                glyph[2] = 0x7F;
+                glyph[3] = 0x41;
+                glyph[4] = 0x00;
+                break;
+
+            case 'L':
+                glyph[0] = 0x7F;
+                glyph[1] = 0x40;
+                glyph[2] = 0x40;
+                glyph[3] = 0x40;
+                glyph[4] = 0x40;
+                break;
+
             case 'M':
                 glyph[0] = 0x7F;
                 glyph[1] = 0x02;
@@ -957,6 +1072,14 @@ void FlushLineBuffer(
                 glyph[2] = 0x08;
                 glyph[3] = 0x10;
                 glyph[4] = 0x7F;
+                break;
+
+            case 'O':
+                glyph[0] = 0x3E;
+                glyph[1] = 0x41;
+                glyph[2] = 0x41;
+                glyph[3] = 0x41;
+                glyph[4] = 0x3E;
                 break;
 
             case 'P':
@@ -983,12 +1106,28 @@ void FlushLineBuffer(
                 glyph[4] = 0x31;
                 break;
 
+            case 'T':
+                glyph[0] = 0x01;
+                glyph[1] = 0x01;
+                glyph[2] = 0x7F;
+                glyph[3] = 0x01;
+                glyph[4] = 0x01;
+                break;
+
             case 'U':
                 glyph[0] = 0x3F;
                 glyph[1] = 0x40;
                 glyph[2] = 0x40;
                 glyph[3] = 0x40;
                 glyph[4] = 0x3F;
+                break;
+
+            case 'V':
+                glyph[0] = 0x0F;
+                glyph[1] = 0x30;
+                glyph[2] = 0x40;
+                glyph[3] = 0x30;
+                glyph[4] = 0x0F;
                 break;
 
             case 'X':

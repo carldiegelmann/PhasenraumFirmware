@@ -33,18 +33,18 @@ int main(void)
 
     ST7789Display display;
     display.Init(&hardware);
-    display.SetBrightness(0.10f);
+    display.SetBrightness(0.50f);
 
     // ------------------------------------------------------------
     // BOOT SPLASH
     // ------------------------------------------------------------
 
     display.DrawTextScaled(
-        30,
+        2,
         125,
         "PHASENRAUM",
         0xFFFF,
-        3);
+        4);
 
     display.DrawVersion(
         96,
@@ -77,7 +77,9 @@ int main(void)
     // 3D TRAIL
     // ------------------------------------------------------------
 
-    static constexpr int TrailLength = 80;
+    static constexpr int TrailLength = 160;
+
+    static constexpr int TrailPixelSize = 2;
 
     // Wir speichern jetzt die Chaos-Werte selbst,
     // nicht mehr nur die Bildschirmkoordinaten.
@@ -136,11 +138,12 @@ int main(void)
 
     PatternEngine patternEngine;
 
-    display.DrawText(
+    display.DrawTextScaled(
         4,
-        305,
+        303,
         "LIVE",
-        0xFFFF);
+        0xFFFF,
+        2);
 
     // ------------------------------------------------------------
     // CLOCK
@@ -202,6 +205,7 @@ int main(void)
         System::GetNow();
 
     static constexpr int DisplayGridSize = 2;
+
 
     // ------------------------------------------------------------
     // 3D -> 2D PROJECTION
@@ -341,6 +345,8 @@ int main(void)
     int cubeX[8] = {};
     int cubeY[8] = {};
 
+    static constexpr int CubePixelSize = 2;
+
     auto DrawLineToBuffer =
         [&](int targetY,
             int x0,
@@ -373,11 +379,25 @@ int main(void)
 
         while(true)
         {
-            if(y0 == targetY)
+            const int blockX =
+                (x0 / CubePixelSize)
+                * CubePixelSize;
+
+            const int blockY =
+                (y0 / CubePixelSize)
+                * CubePixelSize;
+
+            if(targetY >= blockY &&
+            targetY < blockY + CubePixelSize)
             {
-                display.SetLinePixel(
-                    x0,
-                    color);
+                for(int px = 0;
+                    px < CubePixelSize;
+                    ++px)
+                {
+                    display.SetLinePixel(
+                        blockX + px,
+                        color);
+                }
             }
 
             if(x0 == x1 &&
@@ -469,21 +489,31 @@ int main(void)
                 "%d BPM",
                 currentBpm);
 
+            constexpr int BpmScale = 2;
+
+            const int bpmWidth =
+                static_cast<int>(strlen(bpmText))
+                * 6
+                * BpmScale;
+
+            const int bpmX =
+                238 - bpmWidth;
+
             display.FillRect(
-                188,
-                4,
-                52,
-                10,
+                140,
+                2,
+                100,
+                17,
                 0x0000);
 
-            display.DrawText(
-                194,
-                5,
+            display.DrawTextScaled(
+                bpmX,
+                3,
                 bpmText,
-                0xFFFF);
+                0xFFFF,
+                BpmScale);
 
-            lastDisplayedBpm =
-                currentBpm;
+            lastDisplayedBpm = currentBpm;
         }
 
         // --------------------------------------------------------
@@ -514,21 +544,31 @@ int main(void)
                         currentRate));
             }
 
+            constexpr int RateScale = 2;
+
+            const int rateWidth =
+                static_cast<int>(strlen(rateText))
+                * 6
+                * RateScale;
+
+            const int rateX =
+                238 - rateWidth;
+
             display.FillRect(
-                214,
-                15,
-                26,
-                9,
+                196,
+                20,
+                44,
+                17,
                 0x0000);
 
-            display.DrawText(
-                228,
-                16,
+            display.DrawTextScaled(
+                rateX,
+                21,
                 rateText,
-                0xFFFF);
+                0xFFFF,
+                RateScale);
 
-            lastDisplayedRate =
-                currentRate;
+            lastDisplayedRate = currentRate;
         }
 
         // --------------------------------------------------------
@@ -680,11 +720,26 @@ int main(void)
                         continue;
                     }
 
-                    if(x < dirtyMinX[y])
-                        dirtyMinX[y] = x;
+                    for(int py = 0; py < TrailPixelSize; ++py)
+                    {
+                        const int yy =
+                            y + py;
 
-                    if(x > dirtyMaxX[y])
-                        dirtyMaxX[y] = x;
+                        if(yy < 25 || yy >= 285)
+                            continue;
+
+                        const int blockMinX =
+                            x;
+
+                        const int blockMaxX =
+                            x + TrailPixelSize - 1;
+
+                        if(blockMinX < dirtyMinX[yy])
+                            dirtyMinX[yy] = blockMinX;
+
+                        if(blockMaxX > dirtyMaxX[yy])
+                            dirtyMaxX[yy] = blockMaxX;
+                    }
                 }
 
                 // ------------------------------------------------
@@ -817,6 +872,14 @@ int main(void)
                         CubeCenterY -
                         static_cast<int>(
                             y1 * CubeScale);
+
+                    cubeX[i] =
+                        (cubeX[i] / CubePixelSize)
+                        * CubePixelSize;
+
+                    cubeY[i] =
+                        (cubeY[i] / CubePixelSize)
+                        * CubePixelSize;
                 }
 
                 // ------------------------------------------------
@@ -891,11 +954,26 @@ int main(void)
                         continue;
                     }
 
-                    if(x < dirtyMinX[y])
-                        dirtyMinX[y] = x;
+                    for(int py = 0; py < TrailPixelSize; ++py)
+                    {
+                        const int yy =
+                            y + py;
 
-                    if(x > dirtyMaxX[y])
-                        dirtyMaxX[y] = x;
+                        if(yy < 25 || yy >= 285)
+                            continue;
+
+                        const int blockMinX =
+                            x;
+
+                        const int blockMaxX =
+                            x + TrailPixelSize - 1;
+
+                        if(blockMinX < dirtyMinX[yy])
+                            dirtyMinX[yy] = blockMinX;
+
+                        if(blockMaxX > dirtyMaxX[yy])
+                            dirtyMaxX[yy] = blockMaxX;
+                    }
                 }
 
                 // ------------------------------------------------
@@ -918,10 +996,17 @@ int main(void)
                     // Bildschirmzeile in den RAM-Buffer zeichnen.
                     for(int i = 0; i < trailCount; ++i)
                     {
-                        if(trailY[i] != y)
-                            continue;
+                        const int blockY =
+                            trailY[i];
 
-                        const int x = trailX[i];
+                        if(y < blockY ||
+                        y >= blockY + TrailPixelSize)
+                        {
+                            continue;
+                        }
+
+                        const int x =
+                            trailX[i];
 
                         if(x < 0 || x >= 240)
                             continue;
@@ -937,24 +1022,38 @@ int main(void)
 
                         if(age < 0.25f)
                         {
-                            color = 0x0200; // sehr dunkles Grün
+                            color = 0x0200;
                         }
                         else if(age < 0.50f)
                         {
-                            color = 0x03E0; // mittleres Grün
+                            color = 0x03E0;
                         }
                         else if(age < 0.75f)
                         {
-                            color = 0x05E0; // helles Grün
+                            color = 0x05E0;
                         }
                         else
                         {
-                            color = 0x07E0; // maximales RGB565-Grün
+                            color = 0x07E0;
                         }
 
-                        display.SetLinePixel(
-                            x,
-                            color);
+                        for(int px = 0;
+                            px < TrailPixelSize;
+                            ++px)
+                        {
+                            const int drawX =
+                                x + px;
+
+                            if(drawX < 0 ||
+                            drawX >= 240)
+                            {
+                                continue;
+                            }
+
+                            display.SetLinePixel(
+                                drawX,
+                                color);
+                        }
                     }
 
                     // Nur den tatsächlich veränderten Teil
@@ -1162,15 +1261,15 @@ int main(void)
                 snprintf(
                     status,
                     sizeof(status),
-                    "CAP %d/%d",
+                    "CAPTURE %d/%d",
                     captured,
                     length);
 
                 display.DrawStepProgress(
                     4,
-                    291,
+                    287,
                     232,
-                    5,
+                    9,
                     captured,
                     length);
             }
@@ -1192,13 +1291,12 @@ int main(void)
 
                 display.DrawLoopPosition(
                     4,
-                    291,
+                    287,
                     232,
-                    5,
+                    9,
                     currentStep,
                     length,
-                    patternEngine
-                        .WasLastStepMutated());
+                    patternEngine.WasLastStepMutated());
 
                 snprintf(
                     status,
@@ -1215,20 +1313,20 @@ int main(void)
             else
             {
                 // Step-Bar nur beim Wechsel nach LIVE löschen
-    if(strcmp(lastStatus, "LIVE") != 0)
-    {
-        display.FillRect(
-            4,
-            291,
-            232,
-            5,
-            0x0000);
-    }
+                if(strcmp(lastStatus, "LIVE") != 0)
+                {
+                    display.FillRect(
+                        4,
+                        291,
+                        232,
+                        5,
+                        0x0000);
+                }
 
-    snprintf(
-        status,
-        sizeof(status),
-        "LIVE");
+                snprintf(
+                    status,
+                    sizeof(status),
+                    "LIVE");
             }
 
             // ----------------------------------------------------
@@ -1239,18 +1337,21 @@ int main(void)
                 status,
                 lastStatus) != 0)
             {
+                // komplette Statuszeile löschen
                 display.FillRect(
                     0,
-                    302,
-                    120,
-                    12,
+                    300,
+                    240,
+                    20,
                     0x0000);
 
-                display.DrawText(
+                // LIVE / CAPTURE / LOOP immer groß zeichnen
+                display.DrawTextScaled(
                     4,
-                    305,
+                    303,
                     status,
-                    0xFFFF);
+                    0xFFFF,
+                    2);
 
                 snprintf(
                     lastStatus,
@@ -1258,7 +1359,6 @@ int main(void)
                     "%s",
                     status);
             }
-
             // ----------------------------------------------------
             // SERIAL DEBUG
             // ----------------------------------------------------
@@ -1299,11 +1399,12 @@ int main(void)
             if(patternEngine.GetMode() ==
                PatternMode::Live)
             {
-                display.DrawText(
+                display.DrawTextScaled(
                     4,
-                    305,
+                    303,
                     "LIVE",
-                    0xFFFF);
+                    0xFFFF,
+                    2);
             }
         }
 
