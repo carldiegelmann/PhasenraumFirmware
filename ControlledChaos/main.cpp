@@ -21,10 +21,11 @@ int main(void)
     hardware.Init();
 
 
-    AdcChannelConfig adcConfig;
-    adcConfig.InitSingle(A0);
+    AdcChannelConfig adcConfig[2];
+    adcConfig[0].InitSingle(A0); // Chaos
+    adcConfig[1].InitSingle(A1); // Speed
 
-    hardware.adc.Init(&adcConfig, 1);
+    hardware.adc.Init(adcConfig, 2);
     hardware.adc.Start();
 
     // ------------------------------------------------------------
@@ -442,10 +443,15 @@ int main(void)
         // POTI TEST
         // --------------------------------------------------------
 
-        const float potValue = hardware.adc.GetFloat(0);
+        // --------------------------------------------------------
+        // POTIS: A0 = CHAOS, A1 = SPEED
+        // --------------------------------------------------------
 
-        float chaosValue =
-            potValue / 0.979f;
+        const float chaosPot = hardware.adc.GetFloat(0);
+        const float speedPot = hardware.adc.GetFloat(1);
+
+        // Bisherige Kalibrierung für den Chaos-Poti beibehalten.
+        float chaosValue = chaosPot / 0.979f;
 
         if(chaosValue > 1.0f)
             chaosValue = 1.0f;
@@ -453,22 +459,20 @@ int main(void)
         if(chaosValue < 0.0f)
             chaosValue = 0.0f;
 
+        // Speed zunächst direkt im Bereich 0 bis 1 übergeben.
         chaos.SetChaos(chaosValue);
+        chaos.SetSpeed(speedPot);
 
-        const uint32_t potNow =
-            System::GetNow();
+        const uint32_t potNow = System::GetNow();
 
-        if(potNow - lastPotPrint >= 100)
+        if(potNow - lastPotPrint >= 250)
         {
             lastPotPrint = potNow;
 
-            const int potRaw =
-                static_cast<int>(
-                    potValue * 1000.0f);
-
             hardware.PrintLine(
-                "POT: %d",
-                potRaw);
+                "A0 CHAOS: %d  A1 SPEED: %d",
+                static_cast<int>(chaosValue * 1000.0f),
+                static_cast<int>(speedPot * 1000.0f));
         }
 
         // --------------------------------------------------------
@@ -1071,7 +1075,7 @@ int main(void)
                 markerDisplayDivider++;
 
                 const bool updateMarkerPositions =
-                    markerDisplayDivider >= 3;
+                    markerDisplayDivider >= 1;
 
                 if(updateMarkerPositions)
                 {
